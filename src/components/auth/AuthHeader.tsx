@@ -3,17 +3,25 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuthContext } from '@/contexts/AuthContext';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 
 export const AuthHeader: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { user, isAuthenticated, signOut, loading } = useAuthContext();
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (!auth) { setLoading(false); return; }
+    const unsub = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
+    return () => unsub();
+  }, []);
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      if (auth) await fbSignOut(auth);
       setIsUserMenuOpen(false);
       router.push('/');
     } catch (error) {
@@ -22,18 +30,9 @@ export const AuthHeader: React.FC = () => {
   };
 
   const getDashboardUrl = () => {
-    if (!user) return '/auth/login';
-    
+    if (!user) return '/login';
     const isAdminEmail = (user.email || '').toLowerCase() === 'admin@ecobusinessbd.com';
-    if (isAdminEmail) return '/admin/dashboard';
-
-    const roleRedirects = {
-      admin: '/admin/dashboard',
-      employee: '/admin/dashboard',
-      client: '/user/dashboard'
-    };
-    
-    return roleRedirects[user.role] || '/';
+    return isAdminEmail ? '/admin/dashboard' : '/user/dashboard';
   };
 
   const navigation = [
@@ -72,7 +71,7 @@ export const AuthHeader: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             {loading ? (
               <div className="w-8 h-8 animate-pulse bg-gray-200 rounded-full"></div>
-            ) : isAuthenticated ? (
+            ) : user ? (
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -122,7 +121,7 @@ export const AuthHeader: React.FC = () => {
             ) : (
               <>
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   className="text-gray-700 hover:text-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-gray-300 hover:border-blue-600"
                 >
                   Log In
@@ -175,7 +174,7 @@ export const AuthHeader: React.FC = () => {
                   <div className="px-3 py-2">
                     <div className="animate-pulse bg-gray-200 h-4 w-24 rounded"></div>
                   </div>
-                ) : isAuthenticated ? (
+                ) : user ? (
                   <>
                     <div className="px-3 py-2 text-sm text-gray-500">
                       {user?.displayName || user?.email}
@@ -200,7 +199,7 @@ export const AuthHeader: React.FC = () => {
                 ) : (
                   <>
                     <Link
-                      href="/auth/login"
+                      href="/login"
                       className="block mx-3 mb-2 text-gray-700 hover:text-blue-600 px-6 py-2 rounded-lg font-medium text-center transition-all duration-200 border border-gray-300 hover:border-blue-600"
                       onClick={() => setIsMenuOpen(false)}
                     >

@@ -26,6 +26,16 @@ const colorMap: Record<string, {bg:string; ring:string; chipBg:string; chipFg:st
 };
 
 export default function UserDashboardPage() {
+  return (
+    <UserLayout>
+      <React.Suspense fallback={<section className="py-4"><div className="text-gray-600">Loading...</div></section>}>
+        <DashboardContent />
+      </React.Suspense>
+    </UserLayout>
+  );
+}
+
+function DashboardContent() {
   const params = useSearchParams();
   const router = useRouter();
   const [uid, setUid] = React.useState<string | null>(null);
@@ -106,7 +116,6 @@ export default function UserDashboardPage() {
   }, [uid]);
 
   return (
-    <UserLayout>
       <section className="py-4">
         {status === 'success' && (
           <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 p-4">
@@ -155,6 +164,5 @@ export default function UserDashboardPage() {
           @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         `}</style>
       </section>
-    </UserLayout>
   );
 }

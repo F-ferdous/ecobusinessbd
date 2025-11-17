@@ -2,9 +2,8 @@
 
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAuthContext } from '@/contexts/AuthContext';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 type AddOn = {
@@ -139,8 +138,17 @@ export default function USBasicPurchaseClient() {
   const [memberType, setMemberType] = React.useState<'single'|'multiple'>('single');
   const [formError, setFormError] = React.useState('');
 
-  // Auth UI state
-  const { user, loading: authLoading, signIn } = useAuthContext();
+  // Direct Firebase Auth state (replacing removed AuthContext)
+  const [user, setUser] = React.useState<any | null>(null);
+  const [authLoading, setAuthLoading] = React.useState(true);
+  React.useEffect(() => {
+    if (!auth) { setAuthLoading(false); return; }
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
   const [authMode, setAuthMode] = React.useState<'new' | 'existing'>('new');
   // Existing user login form state
   const [loginEmail, setLoginEmail] = React.useState('');
@@ -189,7 +197,8 @@ export default function USBasicPurchaseClient() {
     }
     try {
       setLoginSubmitting(true);
-      await signIn(loginEmail, loginPassword);
+      if (!auth) throw new Error('Firebase not initialized');
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
     } catch (error: unknown) {
       let msg = 'Login failed';
       if (typeof error === 'object' && error && 'code' in error) {

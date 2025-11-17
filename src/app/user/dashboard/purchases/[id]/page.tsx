@@ -1,8 +1,11 @@
 import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+export async function generateStaticParams() {
+  return [];
+}
 
-export default function PurchaseDetailRedirect({ params }: { params: { id: string } }) {
-  const id = params?.id || '';
-  redirect(`/user/dashboard/purchases?view=${encodeURIComponent(id)}`);
+export default async function PurchaseDetailRedirect({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/user/dashboard/purchases?view=${encodeURIComponent(id || '')}`);
 }

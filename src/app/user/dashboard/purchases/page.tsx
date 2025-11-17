@@ -39,6 +39,16 @@ interface TxnItem {
 }
 
 export default function PurchasesPage() {
+  return (
+    <UserLayout>
+      <React.Suspense fallback={<section className="py-6"><div className="text-gray-600">Loading...</div></section>}>
+        <PurchasesContent />
+      </React.Suspense>
+    </UserLayout>
+  );
+}
+
+function PurchasesContent() {
   const router = useRouter();
   const params = useSearchParams();
   const [uid, setUid] = React.useState<string | null>(null);
@@ -205,7 +215,6 @@ export default function PurchasesPage() {
   }, [viewId]);
 
   return (
-    <UserLayout>
       <section className="py-6 min-h-[600px]">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900">Purchased Packages</h1>
@@ -416,6 +425,5 @@ export default function PurchasesPage() {
           </div>
         )}
       </section>
-    </UserLayout>
   );
 }
