@@ -1,6 +1,6 @@
 env:
   - variable: STRIPE_SECRET_KEY
-    value: sk_test_51SQ5YrPa7Np7r5mrejXIDLGlSYlSspLN5jYqkVFVMUOCNoLtMvWRTrcoHWsE9UvPRFKyBXt
+    value: sk_test_51SQ5YrPa7Np7r5mrejXIDLGlSYlSspLN5jYqkVFVMUOCNoLtMvWRTrcoHWsE9UvPRFKyBXtveliT5od3upLExKOm00ylvq8tSE
 
   - variable: NEXT_PUBLIC_BASE_URL
     value: "https://ecobusinessbd--ecobusiness-cc899.asia-southeast1.hosted.app"
