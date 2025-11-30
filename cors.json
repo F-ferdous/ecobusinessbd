@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "http://localhost:3000",
+      "http://192.168.1.4:3000",
+      "https://ecobusinessbd.com",
+      "https://www.ecobusinessbd.com"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Authorization", "Content-Type", "x-goog-meta-*"],
+    "maxAgeSeconds": 3600
+  }
+]

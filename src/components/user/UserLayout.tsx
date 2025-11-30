@@ -5,13 +5,19 @@ import UserSidebar from "./UserSidebar";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-export default function UserLayout({ children }: { children: React.ReactNode }) {
+export default function UserLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if (typeof document === "undefined") return;
+    document.body.style.overflow = sidebarOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [sidebarOpen]);
 
   return (
@@ -26,21 +32,39 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           onClick={() => setSidebarOpen(true)}
           className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm active:scale-[.99]"
         >
-          <svg className="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <svg
+            className="h-5 w-5 text-emerald-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 6h18M3 12h18M3 18h18"
+            />
+          </svg>
           Menu
         </button>
       </div>
 
       {/* Backdrop for mobile when sidebar is open */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       <div className="flex flex-1">
-        <UserSidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+        <UserSidebar
+          open={sidebarOpen}
+          onNavigate={() => setSidebarOpen(false)}
+        />
         <div className="flex-1">
-          <main className="p-4 sm:p-6 lg:p-8 h-auto bg-white/90">
-            <div className="min-h-[600px] backdrop-blur rounded-2xl shadow ring-1 ring-gray-100 p-4 sm:p-6 lg:p-8">
+          <main className="p-[2%] h-auto bg-white/90">
+            <div className="min-h-[80vh] backdrop-blur rounded-2xl shadow ring-1 ring-gray-100 p-4 sm:p-6 lg:p-8">
               {children}
             </div>
           </main>
