@@ -1,36 +1,29 @@
 "use client";
 
 import React from "react";
-import UserLayout from "@/components/user/UserLayout";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import Link from "next/link";
+import { db } from "@/lib/firebase";
 import {
   collection,
   getDocs,
   query,
   where,
+  orderBy,
   Timestamp,
 } from "firebase/firestore";
 
 interface UploadItem {
   id: string;
+  userName?: string | null;
   packageName?: string | null;
   country?: string | null;
+  title?: string | null;
   fileUrl?: string | null;
-  filePath?: string | null;
   uploadTime?: Timestamp | null;
+  userEmail?: string | null;
 }
 
-export default function UserDocumentsPage() {
-  return (
-    <UserLayout>
-      <SectionContent />
-    </UserLayout>
-  );
-}
-
-function SectionContent() {
-  const [email, setEmail] = React.useState<string | null>(null);
+export default function AdminUserUploadsPage() {
   const [items, setItems] = React.useState<UploadItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string>("");
@@ -38,71 +31,76 @@ function SectionContent() {
   const [currentUrl, setCurrentUrl] = React.useState<string>("");
   const [currentName, setCurrentName] = React.useState<string>("Document");
 
-  React.useEffect(() => {
-    if (!auth) return;
-    const unsub = onAuthStateChanged(auth, (u) => setEmail(u?.email ?? null));
-    return () => unsub();
-  }, []);
+  const [search, setSearch] = React.useState<string>("");
+
+  const loadUploads = React.useCallback(async () => {
+    try {
+      if (!db) throw new Error("Firestore not initialized");
+      setLoading(true);
+      setError("");
+      const col = collection(db, "UserUploads");
+
+      // Try filter by name via where if provided; otherwise fetch all then filter client-side
+      let list: UploadItem[] = [];
+      if (search.trim()) {
+        try {
+          const q1 = query(col, where("userName", "==", search.trim()));
+          const snap = await getDocs(q1);
+          list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        } catch (_) {
+          // fallback to client-side filter
+          const snap = await getDocs(col);
+          list = snap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as any) }))
+            .filter((x: any) =>
+              (x.userName || "")
+                .toLowerCase()
+                .includes(search.trim().toLowerCase())
+            );
+        }
+      } else {
+        const snap = await getDocs(col);
+        list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      }
+
+      list.sort((a: any, b: any) => {
+        const at =
+          a.uploadTime?.toMillis?.() ??
+          (a.uploadTime ? a.uploadTime.seconds * 1000 : 0);
+        const bt =
+          b.uploadTime?.toMillis?.() ??
+          (b.uploadTime ? b.uploadTime.seconds * 1000 : 0);
+        return bt - at;
+      });
+
+      setItems(list);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load uploads");
+    } finally {
+      setLoading(false);
+    }
+  }, [search]);
 
   React.useEffect(() => {
-    let cancelled = false;
+    let c = false;
     (async () => {
-      if (!db || !email) return;
-      try {
-        setLoading(true);
-        setError("");
-        const col = collection(db, "AdminUploads");
-        let list: UploadItem[] = [];
-        try {
-          const q = query(
-            col,
-            where("userEmail", "==", (email || "").toLowerCase())
-          );
-          const snap = await getDocs(q);
-          list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-        } catch (e) {
-          // fallback: no results
-          list = [];
-        }
-        // sort by uploadTime desc in JS
-        list.sort((a: any, b: any) => {
-          const at =
-            a.uploadTime?.toMillis?.() ??
-            (a.uploadTime ? a.uploadTime.seconds * 1000 : 0);
-          const bt =
-            b.uploadTime?.toMillis?.() ??
-            (b.uploadTime ? b.uploadTime.seconds * 1000 : 0);
-          return bt - at;
-        });
-        if (!cancelled) setItems(list);
-      } catch (e: unknown) {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : "Failed to load documents");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      if (c) return;
+      await loadUploads();
     })();
     return () => {
-      cancelled = true;
+      c = true;
     };
-  }, [email]);
+  }, [loadUploads]);
 
-  const formatDateDMY = (ts?: Timestamp | null) => {
+  const formatDateTime = (ts?: Timestamp | null) => {
     if (!ts) return "—";
     const ms =
-      (ts as any)?.toMillis?.() ?? (ts as any)?.seconds
-        ? (ts as any).seconds * 1000
-        : null;
-    if (!ms) return "—";
-    const d = new Date(ms);
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+      (ts as any)?.toMillis?.() ??
+      ((ts as any)?.seconds ? (ts as any).seconds * 1000 : null);
+    return ms ? new Date(ms).toLocaleString() : "—";
   };
 
   const getDocName = (it: UploadItem): string => {
-    if (it.filePath) return it.filePath.split("/").pop() || "Document";
     if (it.fileUrl) {
       try {
         const u = new URL(it.fileUrl);
@@ -117,22 +115,42 @@ function SectionContent() {
     return "Document";
   };
 
-  const openViewer = (it: UploadItem) => {
-    const name = getDocName(it);
+  const handleView = (it: UploadItem) => {
     if (!it.fileUrl) return;
-    // setCurrentName(name);
-    // setCurrentUrl(it.fileUrl);
-    // setViewerOpen(true);
+    setCurrentUrl(it.fileUrl);
+    setCurrentName(it.title || getDocName(it));
+    setViewerOpen(true);
   };
 
   return (
-    <section className="py-8">
+    <section className="py-8 min-h-[90vh]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Documents</h1>
-          <p className="text-gray-600">
-            Documents uploaded for your purchased packages.
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">User Uploads</h1>
+            <p className="text-gray-600">Documents uploaded by users.</p>
+          </div>
+          <Link
+            href="/admin/file-uploads/list"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-100"
+          >
+            Admin Uploads
+          </Link>
+        </div>
+
+        <div className="mb-4 flex items-center gap-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter by user name"
+            className="w-full max-w-sm rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <button
+            onClick={loadUploads}
+            className="inline-flex items-center px-3 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+          >
+            Apply
+          </button>
         </div>
 
         {loading ? (
@@ -148,13 +166,16 @@ function SectionContent() {
                     Sl
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Package name
+                    User name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
+                    Package Name
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Country
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Document Name
+                    Document Title
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Upload Date
@@ -171,22 +192,25 @@ function SectionContent() {
                       {idx + 1}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
+                      {it.userName || ""}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
                       {it.packageName || ""}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {it.country || ""}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {getDocName(it)}
+                      {it.title || getDocName(it)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {formatDateDMY(it.uploadTime)}
+                      {formatDateTime(it.uploadTime)}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {it.fileUrl ? (
                         <div className="inline-flex items-center gap-2">
                           <button
-                            onClick={() => openViewer(it)}
+                            onClick={() => handleView(it)}
                             className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                           >
                             View
@@ -200,7 +224,7 @@ function SectionContent() {
                           </a>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400">No file</span>
+                        <span className="text-xs text-gray-400">No URL</span>
                       )}
                     </td>
                   </tr>
@@ -208,10 +232,10 @@ function SectionContent() {
                 {items.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-4 py-8 text-center text-sm text-gray-500"
                     >
-                      No documents yet.
+                      No uploads found.
                     </td>
                   </tr>
                 )}
@@ -219,7 +243,7 @@ function SectionContent() {
             </table>
           </div>
         )}
-        {/* Modal viewer */}
+
         {viewerOpen && (
           <div
             className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4"
@@ -230,12 +254,14 @@ function SectionContent() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3 p-3 border-b border-gray-200">
-                <h3
-                  className="text-sm font-semibold text-gray-900 truncate"
-                  title={currentName}
-                >
-                  {currentName}
-                </h3>
+                <div className="min-w-0">
+                  <h3
+                    className="text-sm font-semibold text-gray-900 truncate"
+                    title={currentName}
+                  >
+                    {currentName}
+                  </h3>
+                </div>
                 <button
                   onClick={() => setViewerOpen(false)}
                   className="px-2 py-1 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-100"
@@ -243,7 +269,7 @@ function SectionContent() {
                   Close
                 </button>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 overflow-auto bg-gray-50">
                 <iframe src={currentUrl} className="w-full h-full" />
               </div>
             </div>

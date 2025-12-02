@@ -5,8 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -14,13 +16,14 @@ export default function Header() {
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   useEffect(() => {
     if (!auth) return;
-    const unsub = onAuthStateChanged(auth, u => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setCurrentEmail(u?.email ?? null);
     });
     return () => unsub();
   }, []);
   const isAuthenticated = !!currentEmail;
-  const isAdminEmail = (currentEmail || "").toLowerCase() === "admin@ecobusinessbd.com";
+  const isAdminEmail =
+    (currentEmail || "").toLowerCase() === "admin@ecobusinessbd.com";
   const dashboardHref = isAdminEmail ? "/admin/dashboard" : "/user/dashboard";
 
   const navigation = [
@@ -159,7 +162,11 @@ export default function Header() {
                       <Link
                         href={item.href}
                         className="block px-3 py-2 rounded-md hover:bg-gray-50 transition-all duration-200 group"
-                        onClick={() => setIsServicesOpen(false)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(item.href);
+                          setIsServicesOpen(false);
+                        }}
                       >
                         <div className="text-sm font-medium text-gray-900 group-hover:text-green-600 transition-colors duration-200">
                           {item.name}
@@ -257,56 +264,35 @@ export default function Header() {
                 </Link>
               ))}
 
-              {/* Mobile Services Menu */}
+              {/* Mobile Services Menu (always visible) */}
               <div
                 className="animate-fadeInUp"
                 style={{ animationDelay: `${navigation.length * 100}ms` }}
               >
-                <div className="px-3 py-2 text-base font-semibold text-gray-700">
-                  <div
-                    className="flex items-center justify-between"
-                    onClick={() => setIsServicesOpen(!isServicesOpen)}
-                  >
-                    <span>Services</span>
-                    <svg
-                      className={`h-4 w-4 transition-transform duration-200 ${
-                        isServicesOpen ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                <div className="px-3 pt-2 pb-1 text-base font-semibold text-gray-700">
+                  <span>Services</span>
+                </div>
+                <div className="mt-1 pl-3 pr-3 space-y-1">
+                  {servicesMenu.map((item, itemIndex) => (
+                    <div
+                      key={item.name}
+                      className="animate-fadeInUp"
+                      style={{ animationDelay: `${itemIndex * 50}ms` }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
-
-                  {isServicesOpen && (
-                    <div className="mt-2 pl-3 space-y-1 animate-slideDown">
-                      {servicesMenu.map((item, itemIndex) => (
-                        <div
-                          key={item.name}
-                          className="animate-fadeInUp"
-                          style={{ animationDelay: `${itemIndex * 50}ms` }}
-                        >
-                          <Link
-                            href={item.href}
-                            className="block py-1.5 text-sm text-gray-600 hover:text-green-600 transition-colors duration-200"
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              setIsServicesOpen(false);
-                            }}
-                          >
-                            {item.name}
-                          </Link>
-                        </div>
-                      ))}
+                      <Link
+                        href={item.href}
+                        className="block py-2 text-sm text-gray-700 hover:text-green-600 rounded-md"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(item.href);
+                          setIsMenuOpen(false);
+                          setIsServicesOpen(false);
+                        }}
+                      >
+                        {item.name}
+                      </Link>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 

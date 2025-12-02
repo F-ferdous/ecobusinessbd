@@ -28,6 +28,26 @@ const navItems = [
     ),
   },
   {
+    label: "User Uploads",
+    href: "/admin/user-uploads",
+    color: "violet",
+    icon: (
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+      >
+        <path
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0l-4 4m4-4l4 4"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "User Management",
     href: "/admin/users",
     color: "sky",
