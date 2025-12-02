@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-export default function PurchaseSuccessPage() {
+function PurchaseSuccessContent() {
   const router = useRouter();
   const params = useSearchParams();
   const [uid, setUid] = React.useState<string | null>(null);
@@ -131,5 +131,26 @@ export default function PurchaseSuccessPage() {
         {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
       </div>
     </section>
+  );
+}
+
+export default function PurchaseSuccessPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <section className="min-h-[50vh] flex items-center justify-center bg-gray-50">
+          <div className="bg-white rounded-2xl shadow ring-1 ring-gray-100 p-6 w-full max-w-md text-center">
+            <div className="text-xl font-semibold text-gray-900">
+              Processing…
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              Preparing your success page…
+            </div>
+          </div>
+        </section>
+      }
+    >
+      <PurchaseSuccessContent />
+    </React.Suspense>
   );
 }
