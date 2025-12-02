@@ -498,6 +498,8 @@ export default function USBasicPurchaseClient() {
               : { id, title: id, price: 0 };
           });
         const orderDetails = {
+          userId: (user as any).uid || (user as any).id || null,
+          email: (user as any).email || null,
           country: "USA",
           packageKey: pkgKey,
           packageTitle: meta.title,
@@ -543,7 +545,7 @@ export default function USBasicPurchaseClient() {
           currency: "USD",
           userId: (user as any).id || (user as any).uid || null,
           customerEmail: (user as any).email || null,
-          successPath: "/user/dashboard/purchases",
+          successPath: "/purchase/success",
           cancelPath: `/purchase/us/purchase?package=${encodeURIComponent(
             pkgKey
           )}`,

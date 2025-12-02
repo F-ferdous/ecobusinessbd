@@ -196,6 +196,8 @@ export default function AdditionalServicePurchaseClient() {
       setFormError("");
       // Save a snapshot to localStorage for dashboard rendering like other purchase pages
       const orderDetails = {
+        userId: (user as any)?.uid || (user as any)?.id || null,
+        email: (user as any)?.email || null,
         country,
         packageKey: service?.id || "additional",
         packageTitle: service?.title || "Additional Service",
@@ -235,7 +237,7 @@ export default function AdditionalServicePurchaseClient() {
           currency: "USD",
           userId: (user as any).id || (user as any).uid || null,
           customerEmail: (user as any).email || null,
-          successPath: "/user/dashboard/purchases",
+          successPath: "/purchase/success",
           cancelPath: `/purchase/additional?service=${encodeURIComponent(
             service?.id || "additional"
           )}`,

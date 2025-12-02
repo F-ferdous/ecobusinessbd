@@ -117,6 +117,7 @@ function PurchasesContent() {
           ? amountFromQuery
           : Number(orderDetails?.amount || 0);
       if (!(amount > 0)) return;
+      if (!effectiveUserId) return; // Ensure we never write without a userId
 
       try {
         const payload: any = {
@@ -127,7 +128,7 @@ function PurchasesContent() {
             titleFromQuery || orderDetails?.packageTitle || (pkg ? pkg : null),
           amount,
           currency,
-          status: "completed",
+          status: "pending",
           createdAt: Timestamp.now(),
         };
         if (orderDetails) {
@@ -138,7 +139,25 @@ function PurchasesContent() {
           payload.breakdown = orderDetails.breakdown || undefined;
         }
 
-        await addDoc(collection(db, "Transactions"), payload);
+        const txRef = await addDoc(collection(db, "Transactions"), payload);
+        try {
+          const packageName =
+            payload.packageTitle || payload.packageKey || "Service Package";
+          const totalAmount = Number(payload.amount || 0);
+          const country = payload.country || null;
+          await addDoc(collection(db, "PendingOrders"), {
+            packageName,
+            userId: effectiveUserId,
+            status: "pending",
+            country,
+            totalAmount,
+            createdAt: payload.createdAt,
+            transactionId: txRef.id,
+          });
+        } catch (e) {
+          // Non-blocking: if PendingOrders creation fails, we don't block the user flow
+          console.error("Failed to create PendingOrders entry", e);
+        }
         if (!cancelled) {
           // Clean URL params after save
           const url = new URL(window.location.href);

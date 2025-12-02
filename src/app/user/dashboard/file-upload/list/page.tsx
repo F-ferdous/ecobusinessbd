@@ -34,6 +34,7 @@ export default function UserUploadsListPage() {
 
 function SectionContent() {
   const [email, setEmail] = React.useState<string | null>(null);
+  const [uid, setUid] = React.useState<string | null>(null);
   const [items, setItems] = React.useState<UploadItem[]>([]);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string>("");
@@ -43,20 +44,20 @@ function SectionContent() {
 
   React.useEffect(() => {
     if (!auth) return;
-    const unsub = onAuthStateChanged(auth, (u) => setEmail(u?.email ?? null));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setEmail(u?.email ?? null);
+      setUid(u?.uid ?? null);
+    });
     return () => unsub();
   }, []);
 
   const loadUploads = React.useCallback(async () => {
-    if (!db || !email) return;
+    if (!db || !uid) return;
     try {
       setLoading(true);
       setError("");
       const col = collection(db, "UserUploads");
-      const q1 = query(
-        col,
-        where("userEmail", "==", (email || "").toLowerCase())
-      );
+      const q1 = query(col, where("userId", "==", uid));
       const snap = await getDocs(q1);
       const list: UploadItem[] = snap.docs.map((d) => ({
         id: d.id,
@@ -64,11 +65,17 @@ function SectionContent() {
       }));
       list.sort((a: any, b: any) => {
         const at =
-          a.uploadTime?.toMillis?.() ??
-          (a.uploadTime ? a.uploadTime.seconds * 1000 : 0);
+          a.uploadedAt?.toMillis?.() ??
+          (a.uploadedAt
+            ? a.uploadedAt.seconds * 1000
+            : a.uploadTime?.toMillis?.() ??
+              (a.uploadTime ? a.uploadTime.seconds * 1000 : 0));
         const bt =
-          b.uploadTime?.toMillis?.() ??
-          (b.uploadTime ? b.uploadTime.seconds * 1000 : 0);
+          b.uploadedAt?.toMillis?.() ??
+          (b.uploadedAt
+            ? b.uploadedAt.seconds * 1000
+            : b.uploadTime?.toMillis?.() ??
+              (b.uploadTime ? b.uploadTime.seconds * 1000 : 0));
         return bt - at;
       });
       setItems(list);
@@ -77,7 +84,7 @@ function SectionContent() {
     } finally {
       setLoading(false);
     }
-  }, [email]);
+  }, [uid]);
 
   React.useEffect(() => {
     loadUploads();
@@ -108,8 +115,9 @@ function SectionContent() {
   };
 
   const handleView = (it: UploadItem) => {
-    if (!it.fileUrl) return;
-    setCurrentUrl(it.fileUrl);
+    const url = (it as any).downloadURL || it.fileUrl;
+    if (!url) return;
+    setCurrentUrl(url);
     setCurrentName(it.title || getDocName(it));
     setViewerOpen(true);
   };
@@ -165,12 +173,7 @@ function SectionContent() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                   Title
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                  Package Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                  Country
-                </th>
+
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                   Upload Date
                 </th>
@@ -207,12 +210,7 @@ function SectionContent() {
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {it.title || getDocName(it)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.packageName || ""}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.country || ""}
-                    </td>
+
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {formatDateTime(it.uploadTime)}
                     </td>

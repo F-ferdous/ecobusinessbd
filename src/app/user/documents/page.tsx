@@ -19,6 +19,7 @@ interface UploadItem {
   fileUrl?: string | null;
   filePath?: string | null;
   uploadTime?: Timestamp | null;
+  title?: string | null;
 }
 
 export default function UserDocumentsPage() {
@@ -30,6 +31,7 @@ export default function UserDocumentsPage() {
 }
 
 function SectionContent() {
+  const [uid, setUid] = React.useState<string | null>(null);
   const [email, setEmail] = React.useState<string | null>(null);
   const [items, setItems] = React.useState<UploadItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -37,29 +39,48 @@ function SectionContent() {
   const [viewerOpen, setViewerOpen] = React.useState<boolean>(false);
   const [currentUrl, setCurrentUrl] = React.useState<string>("");
   const [currentName, setCurrentName] = React.useState<string>("Document");
+  // Controls
+  const [search, setSearch] = React.useState("");
+  const [sortBy, setSortBy] = React.useState<
+    "date" | "package" | "title" | "country"
+  >("date");
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
 
   React.useEffect(() => {
     if (!auth) return;
-    const unsub = onAuthStateChanged(auth, (u) => setEmail(u?.email ?? null));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUid(u?.uid ?? null);
+      setEmail(u?.email ?? null);
+    });
     return () => unsub();
   }, []);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!db || !email) return;
+      if (!db || !uid) return;
       try {
         setLoading(true);
         setError("");
         const col = collection(db, "AdminUploads");
         let list: UploadItem[] = [];
         try {
-          const q = query(
-            col,
-            where("userEmail", "==", (email || "").toLowerCase())
-          );
+          const q = query(col, where("userId", "==", uid));
           const snap = await getDocs(q);
-          list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+          list = snap.docs.map((d) => {
+            const data = d.data() as any;
+            return {
+              id: d.id,
+              packageName: data.packageName || null,
+              country: data.country || null,
+              fileUrl: data.downloadURL || data.fileUrl || null,
+              filePath: data.storagePath || data.filePath || null,
+              uploadTime: data.uploadedAt || data.uploadTime || null,
+              title: data.title || null,
+            } as UploadItem;
+          });
         } catch (e) {
           // fallback: no results
           list = [];
@@ -85,7 +106,7 @@ function SectionContent() {
     return () => {
       cancelled = true;
     };
-  }, [email]);
+  }, [uid]);
 
   const formatDateDMY = (ts?: Timestamp | null) => {
     if (!ts) return "—";
@@ -118,12 +139,69 @@ function SectionContent() {
   };
 
   const openViewer = (it: UploadItem) => {
-    const name = getDocName(it);
+    const name = it.title || getDocName(it);
     if (!it.fileUrl) return;
-    // setCurrentName(name);
-    // setCurrentUrl(it.fileUrl);
-    // setViewerOpen(true);
+    setCurrentName(name);
+    setCurrentUrl(it.fileUrl);
+    setViewerOpen(true);
   };
+
+  // Derived processed list
+  const processed = React.useMemo(() => {
+    const norm = (s: any) => (s ?? "").toString().toLowerCase();
+    let list = items;
+    if (search.trim()) {
+      const q = norm(search.trim());
+      list = list.filter(
+        (it) =>
+          norm(it.packageName).includes(q) ||
+          norm(it.title).includes(q) ||
+          norm(it.country).includes(q)
+      );
+    }
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "date") {
+        const at =
+          (a.uploadTime as any)?.toMillis?.() ||
+          (a.uploadTime ? (a.uploadTime as any).seconds * 1000 : 0);
+        const bt =
+          (b.uploadTime as any)?.toMillis?.() ||
+          (b.uploadTime ? (b.uploadTime as any).seconds * 1000 : 0);
+        cmp = at - bt;
+      } else if (sortBy === "package") {
+        cmp = (a.packageName || "")
+          .toString()
+          .localeCompare((b.packageName || "").toString(), undefined, {
+            sensitivity: "base",
+          });
+      } else if (sortBy === "title") {
+        cmp = (a.title || getDocName(a))
+          .toString()
+          .localeCompare((b.title || getDocName(b)).toString(), undefined, {
+            sensitivity: "base",
+          });
+      } else if (sortBy === "country") {
+        cmp = (a.country || "")
+          .toString()
+          .localeCompare((b.country || "").toString(), undefined, {
+            sensitivity: "base",
+          });
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return { total, totalPages, currentPage, rows: sorted.slice(start, end) };
+  }, [items, search, sortBy, sortDir, page, pageSize]);
+
+  // Reset page when controls change
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, sortBy, sortDir, pageSize]);
 
   return (
     <section className="py-8">
@@ -141,6 +219,59 @@ function SectionContent() {
           <div className="text-rose-600 text-sm">{error}</div>
         ) : (
           <div className="overflow-x-auto bg-white rounded-2xl shadow ring-1 ring-gray-100">
+            {/* Controls */}
+            <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 border-b border-gray-100">
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-600 mb-1">Search</label>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Search by package, title, or country"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-600 mb-1">Sort By</label>
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex-1"
+                  >
+                    <option value="date">Upload Date</option>
+                    <option value="package">Package</option>
+                    <option value="title">Title</option>
+                    <option value="country">Country</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                    }
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    title={`Sort ${
+                      sortDir === "asc" ? "ascending" : "descending"
+                    }`}
+                  >
+                    {sortDir === "asc" ? "Asc" : "Desc"}
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-600 mb-1">
+                  Rows per page
+                </label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -154,7 +285,7 @@ function SectionContent() {
                     Country
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Document Name
+                    Document Title
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Upload Date
@@ -165,10 +296,10 @@ function SectionContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {items.map((it, idx) => (
+                {processed.rows.map((it, idx) => (
                   <tr key={it.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {idx + 1}
+                      {(processed.currentPage - 1) * pageSize + idx + 1}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {it.packageName || ""}
@@ -177,7 +308,7 @@ function SectionContent() {
                       {it.country || ""}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {getDocName(it)}
+                      {it.title || getDocName(it)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {formatDateDMY(it.uploadTime)}
@@ -194,6 +325,8 @@ function SectionContent() {
                           <a
                             href={it.fileUrl}
                             download
+                            target="_blank"
+                            rel="noreferrer"
                             className="px-2 py-1 rounded-md text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100"
                           >
                             Download
@@ -205,7 +338,7 @@ function SectionContent() {
                     </td>
                   </tr>
                 ))}
-                {items.length === 0 && (
+                {processed.total === 0 && (
                   <tr>
                     <td
                       colSpan={6}
@@ -217,6 +350,32 @@ function SectionContent() {
                 )}
               </tbody>
             </table>
+            {/* Pagination */}
+            {processed.total > 0 && (
+              <div className="flex items-center justify-between gap-3 p-3 border-t border-gray-100 text-sm">
+                <div className="text-gray-600">
+                  Page {processed.currentPage} of {processed.totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 disabled:opacity-50"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={processed.currentPage <= 1}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 disabled:opacity-50"
+                    onClick={() =>
+                      setPage((p) => Math.min(processed.totalPages, p + 1))
+                    }
+                    disabled={processed.currentPage >= processed.totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {/* Modal viewer */}

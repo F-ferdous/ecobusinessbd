@@ -130,12 +130,6 @@ export default function AdminUserUploadsPage() {
             <h1 className="text-2xl font-bold text-gray-900">User Uploads</h1>
             <p className="text-gray-600">Documents uploaded by users.</p>
           </div>
-          <Link
-            href="/admin/file-uploads/list"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-100"
-          >
-            Admin Uploads
-          </Link>
         </div>
 
         <div className="mb-4 flex items-center gap-3">
@@ -168,12 +162,7 @@ export default function AdminUserUploadsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     User name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Package Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Country
-                  </th>
+
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Document Title
                   </th>
@@ -194,12 +183,7 @@ export default function AdminUserUploadsPage() {
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {it.userName || ""}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.packageName || ""}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.country || ""}
-                    </td>
+
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {it.title || getDocName(it)}
                     </td>

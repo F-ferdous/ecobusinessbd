@@ -2,13 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 const navItems = [
+  // 1. Sales Dashboard
   {
-    label: "Dashboard",
+    label: "Sales Dashboard",
     href: "/admin/dashboard",
     color: "emerald",
     icon: (
@@ -26,27 +27,21 @@ const navItems = [
         />
       </svg>
     ),
+    children: [
+      { key: "all", label: "All Orders", href: "/admin/dashboard?status=all" },
+      {
+        key: "pending",
+        label: "Pending Orders",
+        href: "/admin/dashboard?status=pending",
+      },
+      {
+        key: "completed",
+        label: "Completed Orders",
+        href: "/admin/dashboard?status=completed",
+      },
+    ],
   },
-  {
-    label: "User Uploads",
-    href: "/admin/user-uploads",
-    color: "violet",
-    icon: (
-      <svg
-        className="h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-      >
-        <path
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0l-4 4m4-4l4 4"
-        />
-      </svg>
-    ),
-  },
+  // 2. User Management
   {
     label: "User Management",
     href: "/admin/users",
@@ -67,28 +62,9 @@ const navItems = [
       </svg>
     ),
   },
+  // 3. Custom Packages (renamed from USA Company Formation)
   {
-    label: "Amazon Course Management",
-    href: "/admin/amazon-courses",
-    color: "violet",
-    icon: (
-      <svg
-        className="h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-      >
-        <path
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9-5 9 5-9 5z"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "USA Company Formation",
+    label: "Custom Packages",
     href: "/admin/usa-company-formation",
     color: "amber",
     icon: (
@@ -107,10 +83,11 @@ const navItems = [
       </svg>
     ),
   },
+  // 4. User Uploads
   {
-    label: "UK Company Formation",
-    href: "/admin/uk-company-formation",
-    color: "indigo",
+    label: "User Uploads",
+    href: "/admin/user-uploads",
+    color: "violet",
     icon: (
       <svg
         className="h-5 w-5"
@@ -122,14 +99,15 @@ const navItems = [
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M3 7h18M3 12h18M3 17h18"
+          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0l-4 4m4-4l4 4"
         />
       </svg>
     ),
   },
+  // 5. Coupon Codes
   {
-    label: "Additional Services",
-    href: "/admin/additional-services",
+    label: "Coupon Codes",
+    href: "/admin/coupons",
     color: "rose",
     icon: (
       <svg
@@ -142,15 +120,16 @@ const navItems = [
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M12 6v12m6-6H6"
+          d="M4 7h16a1 1 0 011 1v2a2 2 0 110 4v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2a2 2 0 110-4V8a1 1 0 011-1z"
         />
       </svg>
     ),
   },
+  // 6. Amazon Courses (renamed)
   {
-    label: "Payment Options",
-    href: "/admin/payment-options",
-    color: "teal",
+    label: "Amazon Courses",
+    href: "/admin/amazon-courses",
+    color: "violet",
     icon: (
       <svg
         className="h-5 w-5"
@@ -162,13 +141,14 @@ const navItems = [
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2m-1-4H6m11 0a2 2 0 100-4 2 2 0 000 4z"
+          d="M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9-5 9 5-9 5z"
         />
       </svg>
     ),
   },
+  // 7. Transactions (renamed from Transaction Details)
   {
-    label: "Transaction Details",
+    label: "Transactions",
     href: "/admin/transactions",
     color: "cyan",
     icon: (
@@ -187,26 +167,6 @@ const navItems = [
       </svg>
     ),
   },
-  {
-    label: "File Upload",
-    href: "/admin/file-uploads",
-    color: "teal",
-    icon: (
-      <svg
-        className="h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-      >
-        <path
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0l-4 4m4-4l4 4"
-        />
-      </svg>
-    ),
-  },
 ];
 
 export default function AdminSidebar({
@@ -217,7 +177,24 @@ export default function AdminSidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const [openSections, setOpenSections] = React.useState<
+    Record<string, boolean>
+  >({});
+  React.useEffect(() => {
+    // Auto-open Sales Dashboard only if a child is active (has status query)
+    const isDashboard = pathname.startsWith("/admin/dashboard");
+    const hasStatus =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).has("status")
+        : false;
+    setOpenSections((prev) => ({
+      ...prev,
+      "/admin/dashboard":
+        (isDashboard && hasStatus) || prev["/admin/dashboard"],
+    }));
+  }, [pathname]);
   const [email, setEmail] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!auth) return;
@@ -279,26 +256,111 @@ export default function AdminSidebar({
               const color = item.color as string;
               const iconBg = iconBgClass[color] || "bg-gray-50";
               const iconFg = iconFgClass[color] || "text-gray-600";
+              const hasChildren = Array.isArray((item as any).children);
+              const isOpen = hasChildren ? !!openSections[item.href] : false;
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => onNavigate?.()}
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all
-                  ${
-                    active
-                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }
-                `}
-                >
-                  <span
-                    className={`shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg ${iconBg} ${iconFg}`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="tracking-tight">{item.label}</span>
-                </Link>
+                <div key={item.href}>
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenSections((s) => ({
+                          ...s,
+                          [item.href]: !s[item.href],
+                        }))
+                      }
+                      className={`w-full group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all ${
+                        active || isOpen
+                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <span
+                          className={`shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg ${iconBg} ${iconFg}`}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="tracking-tight">{item.label}</span>
+                      </span>
+                      <svg
+                        className={`h-4 w-4 transition-transform ${
+                          isOpen ? "rotate-180" : "rotate-0"
+                        }`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 9l6 6 6-6"
+                        />
+                      </svg>
+                    </button>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      onClick={() => onNavigate?.()}
+                      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all ${
+                        active
+                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span
+                        className={`shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg ${iconBg} ${iconFg}`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="tracking-tight">{item.label}</span>
+                    </Link>
+                  )}
+                  {hasChildren && isOpen && (
+                    <div className="mt-1 pl-11 space-y-1">
+                      {(item as any).children.map(
+                        (child: {
+                          key: string;
+                          label: string;
+                          href: string;
+                        }) => {
+                          // Determine active child by status param when on /admin/dashboard
+                          let childActive = false;
+                          if (
+                            item.href === "/admin/dashboard" &&
+                            pathname.startsWith("/admin/dashboard")
+                          ) {
+                            const status = (
+                              searchParams.get("status") || "all"
+                            ).toLowerCase();
+                            childActive = status === child.key;
+                          } else {
+                            const currentQuery = searchParams.toString();
+                            const current = `${pathname}${
+                              currentQuery ? `?${currentQuery}` : ""
+                            }`;
+                            childActive = current === child.href;
+                          }
+                          return (
+                            <Link
+                              key={child.key}
+                              href={child.href}
+                              onClick={() => onNavigate?.()}
+                              className={`block px-2 py-1.5 rounded-lg text-sm font-medium transition ${
+                                childActive
+                                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              {child.label}
+                            </Link>
+                          );
+                        }
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>

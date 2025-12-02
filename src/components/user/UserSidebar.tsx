@@ -88,6 +88,26 @@ const navItems = [
     ),
   },
   {
+    label: "Messages",
+    href: "/user/dashboard/messages",
+    color: "amber",
+    icon: (
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+      >
+        <path
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7 8h10M7 12h7M5 20l4-4h10a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Support",
     href: "/user/dashboard/support",
     color: "emerald",

@@ -12,6 +12,8 @@ import {
   where,
   addDoc,
   serverTimestamp,
+  getDoc,
+  doc,
 } from "firebase/firestore";
 import { makeStoragePath, uploadFileAndGetURL } from "@/lib/storage";
 import { ref as sRef, deleteObject } from "firebase/storage";
@@ -26,12 +28,10 @@ export default function UserFileUploadPage() {
 
 function SectionContent() {
   const [email, setEmail] = React.useState<string | null>(null);
+  const [uid, setUid] = React.useState<string | null>(null);
   const [displayName, setDisplayName] = React.useState<string>("");
 
   // Upload form state
-  const [packages, setPackages] = React.useState<any[]>([]);
-  const [packagesLoading, setPackagesLoading] = React.useState<boolean>(false);
-  const [selectedTxId, setSelectedTxId] = React.useState<string>("");
   const [docTitle, setDocTitle] = React.useState<string>("");
   const [file, setFile] = React.useState<File | null>(null);
   const [uploading, setUploading] = React.useState<boolean>(false);
@@ -51,66 +51,37 @@ function SectionContent() {
   React.useEffect(() => {
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, (u) => {
+      setUid(u?.uid ?? null);
       setEmail(u?.email ?? null);
       setDisplayName(u?.displayName || "");
     });
     return () => unsub();
   }, []);
 
-  // Load user's purchases/packages
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!db || !email) return;
-      try {
-        setPackagesLoading(true);
-        const colTx = collection(db, "Transactions");
-        const qTx = query(
-          colTx,
-          where("email", "==", (email || "").toLowerCase())
-        );
-        const snap = await getDocs(qTx);
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-        list.sort((a: any, b: any) => {
-          const at =
-            a.createdAt?.toMillis?.() ??
-            (a.createdAt ? a.createdAt.seconds * 1000 : 0);
-          const bt =
-            b.createdAt?.toMillis?.() ??
-            (b.createdAt ? b.createdAt.seconds * 1000 : 0);
-          return bt - at;
-        });
-        if (!cancelled) setPackages(list);
-      } catch {
-        if (!cancelled) setPackages([]);
-      } finally {
-        if (!cancelled) setPackagesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [email]);
+  // (Removed) Purchased packages selection and loading
 
   const loadUploads = React.useCallback(async () => {
-    if (!db || !email) return;
+    if (!db || !uid) return;
     try {
       setListLoading(true);
       setListError("");
       const col = collection(db, "UserUploads");
-      const q1 = query(
-        col,
-        where("userEmail", "==", (email || "").toLowerCase())
-      );
+      const q1 = query(col, where("userId", "==", uid));
       const snap = await getDocs(q1);
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       list.sort((a: any, b: any) => {
         const at =
-          a.uploadTime?.toMillis?.() ??
-          (a.uploadTime ? a.uploadTime.seconds * 1000 : 0);
+          a.uploadedAt?.toMillis?.() ??
+          (a.uploadedAt
+            ? a.uploadedAt.seconds * 1000
+            : a.uploadTime?.toMillis?.() ??
+              (a.uploadTime ? a.uploadTime.seconds * 1000 : 0));
         const bt =
-          b.uploadTime?.toMillis?.() ??
-          (b.uploadTime ? b.uploadTime.seconds * 1000 : 0);
+          b.uploadedAt?.toMillis?.() ??
+          (b.uploadedAt
+            ? b.uploadedAt.seconds * 1000
+            : b.uploadTime?.toMillis?.() ??
+              (b.uploadTime ? b.uploadTime.seconds * 1000 : 0));
         return bt - at;
       });
       setItems(list);
@@ -119,7 +90,7 @@ function SectionContent() {
     } finally {
       setListLoading(false);
     }
-  }, [db, email]);
+  }, [db, uid]);
 
   React.useEffect(() => {
     if (listOpen) loadUploads();
@@ -149,8 +120,9 @@ function SectionContent() {
   };
 
   const handleView = (it: any) => {
-    if (!it.fileUrl) return;
-    setCurrentUrl(it.fileUrl);
+    const url = it.downloadURL || it.fileUrl;
+    if (!url) return;
+    setCurrentUrl(url);
     setCurrentName(it.title || getDocName(it));
     setViewerOpen(true);
   };
@@ -182,13 +154,9 @@ function SectionContent() {
       setMessage("");
       setError("");
       if (!db) throw new Error("Firestore not initialized");
-      if (!email) throw new Error("Not signed in");
-      if (!selectedTxId) throw new Error("Please select a package");
+      if (!uid) throw new Error("Not signed in");
       if (!docTitle.trim()) throw new Error("Please enter a document title");
       if (!file) throw new Error("Please choose a file");
-      const tx = packages.find((p) => p.id === selectedTxId) || {};
-      const pkgName = (tx.packageName || tx.packageTitle || "").toString();
-      const country = (tx.country || "").toString();
       const path = makeStoragePath("user-uploads", file.name);
       setUploading(true);
       setProgress(0);
@@ -198,20 +166,36 @@ function SectionContent() {
         undefined,
         (pct) => setProgress(pct)
       );
+      // Resolve a reliable userName
+      let resolvedName = (displayName || "").trim();
+      if (!resolvedName && uid) {
+        try {
+          const uref = doc(db, "Users", uid);
+          const usnap = await getDoc(uref);
+          const dn =
+            (usnap.exists() ? (usnap.data() as any)?.displayName : "") || "";
+          if (dn) resolvedName = String(dn);
+        } catch {}
+      }
+      if (!resolvedName && email) {
+        resolvedName = email.split("@")[0];
+      }
       await addDoc(collection(db, "UserUploads"), {
-        userName: displayName || "",
+        // Required fields
+        userName: resolvedName,
         title: docTitle.trim(),
-        fileUrl: url,
-        packageName: pkgName,
-        country,
-        uploadTime: serverTimestamp(),
-        userEmail: (email || "").toLowerCase(),
+        uploadedAt: serverTimestamp(),
+        downloadURL: url,
+        userId: uid,
+        // Helpful extras for backward compatibility and management
         filePath: savedPath,
+        userEmail: (email || "").toLowerCase(),
+        fileUrl: url,
+        uploadTime: serverTimestamp(),
       });
       setMessage("File uploaded successfully");
       setDocTitle("");
       setFile(null);
-      setSelectedTxId("");
       setProgress(0);
       setUploading(false);
       if (listOpen) loadUploads();
@@ -233,9 +217,7 @@ function SectionContent() {
             List of Uploads
           </Link>
         </div>
-        <p className="text-gray-600 mb-4">
-          Upload documents for your purchased packages.
-        </p>
+        <p className="text-gray-600 mb-4">Upload your documents.</p>
 
         {listOpen && (
           <div className="mb-8 overflow-x-auto bg-white rounded-2xl shadow ring-1 ring-gray-100">
@@ -247,12 +229,6 @@ function SectionContent() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Title
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Package Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Country
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Upload Date
@@ -289,12 +265,6 @@ function SectionContent() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {it.title || getDocName(it)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {it.packageName || ""}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {it.country || ""}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {formatDateTime(it.uploadTime)}
@@ -334,33 +304,6 @@ function SectionContent() {
         <div className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Purchased Package
-            </label>
-            <select
-              value={selectedTxId}
-              onChange={(e) => setSelectedTxId(e.target.value)}
-              disabled={packagesLoading || uploading}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white disabled:opacity-60"
-            >
-              <option value="">
-                {packages.length ? "Select a package" : "No packages found"}
-              </option>
-              {packages.map((t) => {
-                const label = `${(
-                  t.packageName ||
-                  t.packageTitle ||
-                  "Unnamed Package"
-                ).toString()}${t.country ? ` — ${t.country}` : ""}`;
-                return (
-                  <option key={t.id} value={t.id}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Document Title
             </label>
             <input
@@ -393,7 +336,7 @@ function SectionContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleUpload}
-              disabled={!selectedTxId || !docTitle.trim() || !file || uploading}
+              disabled={!docTitle.trim() || !file || uploading}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60"
             >
               {uploading ? "Uploading…" : "Upload File"}
