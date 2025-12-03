@@ -73,6 +73,13 @@ function PurchaseSuccessContent() {
           payload.addOns = orderDetails.addOns || [];
           payload.features = orderDetails.features || [];
           payload.breakdown = orderDetails.breakdown || undefined;
+          // Carry coupon details if present
+          if (orderDetails.couponCode)
+            payload.couponCode = orderDetails.couponCode;
+          if (typeof orderDetails.couponPercent !== "undefined")
+            payload.couponPercent = orderDetails.couponPercent;
+          if (typeof orderDetails.discountAmount !== "undefined")
+            payload.discountAmount = orderDetails.discountAmount;
         }
         const txRef = await addDoc(collection(db, "Transactions"), payload);
         // Mirror to PendingOrders
@@ -89,6 +96,10 @@ function PurchaseSuccessContent() {
             totalAmount,
             createdAt,
             transactionId: txRef.id,
+            // copy coupon fields
+            couponCode: payload.couponCode || null,
+            couponPercent: payload.couponPercent || 0,
+            discountAmount: payload.discountAmount || 0,
           });
         } catch (e) {
           // Non-blocking mirror failure

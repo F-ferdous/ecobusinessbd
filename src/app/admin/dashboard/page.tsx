@@ -11,7 +11,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const cards = [
   {
@@ -192,8 +192,9 @@ const formatDateOnly = (ts?: Timestamp) =>
       ).toLocaleDateString()
     : "—";
 
-export default function AdminDashboard() {
+function AdminDashboardInner() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   const status = (params.get("status") || "all").toLowerCase();
   const [loading, setLoading] = React.useState(false);
@@ -226,10 +227,10 @@ export default function AdminDashboard() {
         setLoading(true);
         setError("");
         if (status === "pending") {
-          // Load from PendingOrders
-          const base = collection(db, "PendingOrders");
-          const q = query(base);
-          const snap = await getDocs(q);
+          // Clear transactions list to avoid any flicker of old data
+          setItems([]);
+          // Load from PendingOrders collection (contains only pending)
+          const snap = await getDocs(collection(db, "PendingOrders"));
           let rows: PendingOrder[] = snap.docs.map((d) => ({
             id: d.id,
             ...(d.data() as any),
@@ -253,12 +254,26 @@ export default function AdminDashboard() {
             await Promise.all(
               missing.map(async (uid) => {
                 try {
+                  // 1) Try direct doc by uid
                   const ref = doc(db, "Users", uid);
-                  const snap = await getDoc(ref);
-                  const dn =
-                    (snap.exists() ? (snap.data() as any)?.displayName : "") ||
-                    "";
-                  if (dn) fetched[uid] = dn as string;
+                  let snap = await getDoc(ref);
+                  let data: any = snap.exists() ? (snap.data() as any) : null;
+                  if (!data) {
+                    // 2) Try query by uid field
+                    const { getDocs, collection, query, where } = await import(
+                      "firebase/firestore"
+                    );
+                    const usersCol = collection(db, "Users");
+                    let q = query(usersCol, where("uid", "==", uid));
+                    let qSnap = await getDocs(q);
+                    if (qSnap.empty) {
+                      // No email available in pending block; skip email lookup
+                    } else {
+                      data = (qSnap.docs[0].data() as any) || null;
+                    }
+                  }
+                  const dn = (data?.displayName || "").toString().trim();
+                  if (dn) fetched[uid] = dn;
                 } catch {}
               })
             );
@@ -267,6 +282,8 @@ export default function AdminDashboard() {
             }
           }
         } else {
+          // Clear pending list when not viewing pending
+          setPendingItems([]);
           // Load from Transactions for all/completed
           const base = collection(db, "Transactions");
           const q =
@@ -278,6 +295,13 @@ export default function AdminDashboard() {
             id: d.id,
             ...(d.data() as any),
           }));
+          // Filter to only our purchase flow transactions to prevent unrelated docs inflating counts
+          rows = rows.filter((r: any) => {
+            const hasPkg = !!(r.packageTitle || r.packageKey || r.packageName);
+            const c = (r.country || "").toString().toUpperCase();
+            const validCountry = c === "USA" || c === "UK" || c === "CUSTOM";
+            return hasPkg && validCountry;
+          });
           rows.sort((a, b) => {
             const at =
               (a.createdAt as any)?.toMillis?.() ||
@@ -300,10 +324,19 @@ export default function AdminDashboard() {
                 try {
                   const ref = doc(db, "Users", uid);
                   const snap = await getDoc(ref);
-                  const dn =
-                    (snap.exists() ? (snap.data() as any)?.displayName : "") ||
-                    "";
-                  if (dn) fetched[uid] = dn as string;
+                  const data = snap.exists() ? (snap.data() as any) : {};
+                  const dnRaw =
+                    data?.displayName ||
+                    data?.name ||
+                    data?.Name ||
+                    data?.fullName ||
+                    (data?.firstName || data?.lastName
+                      ? `${data?.firstName || ""} ${
+                          data?.lastName || ""
+                        }`.trim()
+                      : "");
+                  const dn = (dnRaw || "").toString().trim();
+                  if (dn) fetched[uid] = dn;
                 } catch {}
               })
             );
@@ -391,10 +424,21 @@ export default function AdminDashboard() {
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
     return { total, totalPages, currentPage, rows: sorted.slice(start, end) };
-  }, [items, userNameMap, nameFilter, search, sortBy, sortDir, page, pageSize]);
+  }, [
+    status,
+    pendingItems,
+    items,
+    userNameMap,
+    nameFilter,
+    search,
+    sortBy,
+    sortDir,
+    page,
+    pageSize,
+  ]);
 
   return (
-    <section className="py-4">
+    <section key={status} className="py-4">
       {/* Orders table shown when using Sales Dashboard options */}
       <div className="mb-6">
         <div className="mb-3">
@@ -763,11 +807,11 @@ export default function AdminDashboard() {
                       key={row.id}
                       className="border-b last:border-0 hover:bg-emerald-50/40 cursor-pointer"
                       onClick={() => {
-                        if (status === "pending") {
-                          router.push(`/admin/orders/${row.id}?type=pending`);
-                        } else {
-                          router.push(`/admin/orders/${row.id}?type=tx`);
-                        }
+                        const base = pathname.startsWith("/manager")
+                          ? "/manager/orders"
+                          : "/admin/orders";
+                        const type = status === "pending" ? "pending" : "tx";
+                        router.push(`${base}/${row.id}?type=${type}`);
                       }}
                     >
                       <td className="py-3 pr-4 w-14">
@@ -817,9 +861,10 @@ export default function AdminDashboard() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(
-                                  `/admin/orders/${row.id}?type=pending`
-                                );
+                                const base = pathname.startsWith("/manager")
+                                  ? "/manager/orders"
+                                  : "/admin/orders";
+                                router.push(`${base}/${row.id}?type=pending`);
                               }}
                               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow hover:bg-emerald-700 active:scale-[.99]"
                             >
@@ -834,7 +879,10 @@ export default function AdminDashboard() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/admin/orders/${row.id}?type=tx`);
+                              const base = pathname.startsWith("/manager")
+                                ? "/manager/orders"
+                                : "/admin/orders";
+                              router.push(`${base}/${row.id}?type=tx`);
                             }}
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow hover:bg-emerald-700 active:scale-[.99]"
                           >
@@ -930,5 +978,21 @@ export default function AdminDashboard() {
         }
       `}</style>
     </section>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <React.Suspense
+      fallback={
+        <section className="py-4">
+          <div className="rounded-2xl bg-white shadow ring-1 ring-gray-100 p-4 text-sm text-gray-600">
+            Loading dashboard…
+          </div>
+        </section>
+      }
+    >
+      <AdminDashboardInner />
+    </React.Suspense>
   );
 }

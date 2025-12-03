@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
 export default function Header() {
@@ -14,17 +14,38 @@ export default function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  const [role, setRole] = useState<string>("");
   useEffect(() => {
     if (!auth) return;
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setCurrentEmail(u?.email ?? null);
+      // Load role from Firestore Users doc
+      try {
+        if (u?.uid && db) {
+          const { doc, getDoc } = await import("firebase/firestore");
+          const snap = await getDoc(doc(db, "Users", u.uid));
+          const data = (snap.exists() ? (snap.data() as any) : {}) as any;
+          const r = (data.role || data.Role || "").toString().toLowerCase();
+          setRole(r);
+        } else {
+          setRole("");
+        }
+      } catch {
+        setRole("");
+      }
     });
     return () => unsub();
   }, []);
   const isAuthenticated = !!currentEmail;
   const isAdminEmail =
     (currentEmail || "").toLowerCase() === "admin@ecobusinessbd.com";
-  const dashboardHref = isAdminEmail ? "/admin/dashboard" : "/user/dashboard";
+  const dashboardHref = isAdminEmail
+    ? "/admin/dashboard"
+    : role === "admin"
+    ? "/admin/dashboard"
+    : role === "manager"
+    ? "/manager/dashboard"
+    : "/user/dashboard";
 
   const navigation = [
     { name: "Home", href: "/" },

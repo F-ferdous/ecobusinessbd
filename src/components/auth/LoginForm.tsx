@@ -34,26 +34,36 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       await signIn(email, password);
       onSuccess?.();
-      // Fast-path admin to reduce visible blink
+      // Fast-path admin by email
       const currentEmail = auth?.currentUser?.email || email;
       const normalizedEmail = (currentEmail || "").trim().toLowerCase();
       if (normalizedEmail === "admin@ecobusinessbd.com") {
         router.replace("/admin/dashboard");
         return;
       }
-      // Lookup Firestore user Role and route accordingly
+      // Lookup Firestore role and route: admin -> /admin, manager -> /manager, user -> /user
       const uid = auth?.currentUser?.uid;
       if (db && uid) {
         try {
-          const snapshot = await getDoc(doc(db, 'Users', uid));
-          const data = snapshot.data() as { Role?: string } | undefined;
-          if (data?.Role === 'User') {
-            router.replace('/user/dashboard');
+          const snapshot = await getDoc(doc(db, "Users", uid));
+          const data = (snapshot.data() as any) || {};
+          const role = ((data.role || data.Role || "") as string).toLowerCase();
+          if (role === "admin") {
+            router.replace("/admin/dashboard");
+            return;
+          }
+          if (role === "manager") {
+            router.replace("/manager/dashboard");
+            return;
+          }
+          if (role === "user") {
+            router.replace("/user/dashboard");
             return;
           }
         } catch {}
       }
-      router.replace('/');
+      // Fallback
+      router.replace("/user/dashboard");
     } catch (error: unknown) {
       console.error("Login error:", error);
 

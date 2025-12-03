@@ -8,7 +8,15 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  setDoc,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 
 type AddOn = {
   id: string;
@@ -215,7 +223,8 @@ export default function USBasicPurchaseClient() {
   // UI state
   const [selected, setSelected] = React.useState<Record<string, boolean>>({});
   const [coupon, setCoupon] = React.useState("");
-  const [couponApplied, setCouponApplied] = React.useState<string | null>(null);
+  const [couponPercent, setCouponPercent] = React.useState<number>(0);
+  const [couponError, setCouponError] = React.useState<string>("");
 
   // Company details form state
   const STATE_FEES: Record<string, number> = {
@@ -342,23 +351,49 @@ export default function USBasicPurchaseClient() {
     return sum + (item?.price || 0);
   }, 0);
 
-  const discount = couponApplied === "SAVE50" ? 50 : 0;
   // Extra government fees for trademark registrations
   const extraFee =
     (selected["us-trademark"] ? 250 : 0) + (selected["uk-trademark"] ? 240 : 0);
-  const total = Math.max(
+  const subtotal = planPrice + stateFee + monthlyFee + addOnTotal + extraFee;
+  const discount = Math.max(
     0,
-    planPrice + stateFee + monthlyFee + addOnTotal + extraFee - discount
+    Math.round((subtotal * (couponPercent || 0)) / 100)
   );
+  const total = Math.max(0, subtotal - discount);
 
   const toggleAddOn = (id: string) => {
     setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleApplyCoupon = () => {
-    const code = coupon.trim().toUpperCase();
-    if (code === "SAVE50") setCouponApplied(code);
-    else setCouponApplied(null);
+  const handleApplyCoupon = async () => {
+    try {
+      setCouponError("");
+      const code = coupon.trim().toUpperCase();
+      if (!code) {
+        setCouponPercent(0);
+        return;
+      }
+      if (!db) return;
+      const snap = await getDocs(
+        query(collection(db, "CouponCodes"), where("code", "==", code))
+      );
+      if (snap.empty) {
+        setCouponPercent(0);
+        setCouponError("Invalid coupon code");
+        return;
+      }
+      const data = (snap.docs[0].data() as any) || {};
+      const p = Number(data.percent || 0);
+      if (!isFinite(p) || p <= 0) {
+        setCouponPercent(0);
+        setCouponError("Invalid coupon percentage");
+        return;
+      }
+      setCouponPercent(p);
+    } catch (_) {
+      setCouponPercent(0);
+      setCouponError("Failed to apply coupon");
+    }
   };
 
   const handleInlineLogin = async (e: React.FormEvent) => {
@@ -523,6 +558,9 @@ export default function USBasicPurchaseClient() {
             discount,
             total,
           },
+          couponCode: coupon.trim().toUpperCase() || null,
+          couponPercent: couponPercent || 0,
+          discountAmount: discount || 0,
           savedAt: Date.now(),
         };
         if (typeof window !== "undefined") {
@@ -800,11 +838,12 @@ export default function USBasicPurchaseClient() {
                   Apply
                 </button>
               </div>
-              {couponApplied !== null && (
-                <p className="mt-2 text-sm text-gray-600">
-                  {couponApplied
-                    ? `Coupon "${couponApplied}" applied`
-                    : "Coupon not valid"}
+              {couponError && (
+                <p className="mt-2 text-sm text-rose-600">{couponError}</p>
+              )}
+              {couponPercent > 0 && !couponError && (
+                <p className="mt-2 text-sm text-emerald-700">
+                  {couponPercent}% discount applied
                 </p>
               )}
             </section>
@@ -838,8 +877,8 @@ export default function USBasicPurchaseClient() {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Discount</span>
-                  <span>-${discount.toFixed(0)}</span>
+                  <span>Discount ({couponPercent}%)</span>
+                  <span>- ${discount.toFixed(0)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between font-semibold text-gray-900">
                   <span>Total</span>
