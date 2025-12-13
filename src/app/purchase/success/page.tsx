@@ -18,15 +18,18 @@ function PurchaseSuccessContent() {
   const params = useSearchParams();
   const [uid, setUid] = React.useState<string | null>(null);
   const [email, setEmail] = React.useState<string | null>(null);
+  const [authReady, setAuthReady] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string>("");
   const [saved, setSaved] = React.useState(false);
+  const [didAttempt, setDidAttempt] = React.useState(false);
 
   React.useEffect(() => {
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, (u) => {
       setUid(u?.uid || null);
       setEmail(u?.email || null);
+      setAuthReady(true);
     });
     return () => unsub();
   }, []);
@@ -44,6 +47,9 @@ function PurchaseSuccessContent() {
         if (!db) throw new Error("Firestore not initialized");
         if (saved || saving) return;
         if (status !== "success") return;
+        // Ensure we wait for auth resolution to avoid permission errors
+        if (!authReady) return;
+        setDidAttempt(true);
         // Load last rich order details saved by the purchase page
         let orderDetails: any = null;
         try {
@@ -140,7 +146,7 @@ function PurchaseSuccessContent() {
         if (!cancelled) setError(e?.message || "Failed to save order");
       } finally {
         if (!cancelled) setSaving(false);
-        // Cleanup and redirect to purchases
+        if (!didAttempt) return;
         try {
           const url = new URL(window.location.href);
           url.searchParams.delete("status");
@@ -152,13 +158,11 @@ function PurchaseSuccessContent() {
           if (typeof window !== "undefined")
             window.localStorage.removeItem("lastOrderDetails");
         } catch {}
-        // Redirect to canonical domain to avoid losing auth on preview/alt hosts
         try {
           const base =
             (process.env.NEXT_PUBLIC_BASE_URL as string) ||
             (typeof window !== "undefined" ? window.location.origin : "");
           const target = `${base.replace(/\/$/, "")}/user/dashboard/purchases`;
-          // Prefer hard redirect to ensure domain switch carries correct session
           window.location.assign(target);
         } catch (e) {
           try {
