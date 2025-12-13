@@ -152,12 +152,17 @@ function PurchaseSuccessContent() {
           if (typeof window !== "undefined")
             window.localStorage.removeItem("lastOrderDetails");
         } catch {}
-        // Try client navigation first; on failure, force a hard redirect
+        // Redirect to canonical domain to avoid losing auth on preview/alt hosts
         try {
-          router.replace("/user/dashboard/purchases");
+          const base =
+            (process.env.NEXT_PUBLIC_BASE_URL as string) ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          const target = `${base.replace(/\/$/, "")}/user/dashboard/purchases`;
+          // Prefer hard redirect to ensure domain switch carries correct session
+          window.location.assign(target);
         } catch (e) {
           try {
-            window.location.assign("/user/dashboard/purchases");
+            router.replace("/user/dashboard/purchases");
           } catch {}
         }
       }
