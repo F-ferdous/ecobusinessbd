@@ -45,6 +45,25 @@ interface TxnItem {
   };
 }
 
+const StatusBadge = ({ status }: { status?: string | null }) => {
+  const s = (status || "").toString().toLowerCase();
+  const cls =
+    s === "completed"
+      ? "bg-emerald-50 text-emerald-700"
+      : s === "pending"
+      ? "bg-amber-50 text-amber-700"
+      : s === "refunded"
+      ? "bg-sky-50 text-sky-700"
+      : "bg-gray-100 text-gray-700";
+  return (
+    <span
+      className={`inline-flex px-2 py-1 rounded-lg font-medium text-sm ${cls}`}
+    >
+      {s || "—"}
+    </span>
+  );
+};
+
 export default function PurchasesPage() {
   return (
     <UserLayout>
@@ -230,9 +249,7 @@ function PurchasesContent() {
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between text-sm">
-              <span className="inline-flex px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-medium">
-                {"completed"}
-              </span>
+              <StatusBadge status={it.status} />
               <span className="text-gray-500">
                 {it.createdAt?.toDate
                   ? new Date(it.createdAt.toDate()).toLocaleString()
@@ -292,9 +309,7 @@ function PurchasesContent() {
                             detail.packageKey ||
                             "Service Package"}
                         </span>
-                        <span className="inline-flex px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200">
-                          Pending
-                        </span>
+                        <StatusBadge status={detail.status} />
                       </div>
                     </div>
                   </div>
@@ -356,9 +371,7 @@ function PurchasesContent() {
                       <div className="space-y-3 text-sm text-gray-700">
                         <div className="flex items-start justify-between gap-4">
                           <span className="text-gray-600">Status</span>
-                          <span className="inline-flex px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-medium">
-                            {"completed"}
-                          </span>
+                          <StatusBadge status={detail.status} />
                         </div>
                         <div className="flex items-start justify-between gap-4">
                           <span className="text-gray-600">Amount</span>

@@ -152,7 +152,14 @@ function PurchaseSuccessContent() {
           if (typeof window !== "undefined")
             window.localStorage.removeItem("lastOrderDetails");
         } catch {}
-        router.replace("/user/dashboard/purchases");
+        // Try client navigation first; on failure, force a hard redirect
+        try {
+          router.replace("/user/dashboard/purchases");
+        } catch (e) {
+          try {
+            window.location.assign("/user/dashboard/purchases");
+          } catch {}
+        }
       }
     })();
     return () => {

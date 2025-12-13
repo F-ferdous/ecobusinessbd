@@ -137,10 +137,11 @@ export default function AdminUsersPage() {
     return ms ? new Date(ms).toLocaleString() : "—";
   };
 
-  // Derived processed list
+  // Derived processed list (manager-only)
   const processed = React.useMemo(() => {
     const norm = (s: any) => (s ?? "").toString().toLowerCase();
-    let list = items;
+    // Show only users with role = Manager
+    let list = items.filter((u) => norm(u.role).trim() === "manager");
     if (search.trim()) {
       const q = norm(search.trim());
       list = list.filter(

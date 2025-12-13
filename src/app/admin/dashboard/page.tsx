@@ -233,11 +233,60 @@ function AdminDashboardInner() {
           // Clear transactions list to avoid any flicker of old data
           setItems([]);
           // Load from PendingOrders collection (contains only pending)
-          const snap = await getDocs(collection(db, "PendingOrders"));
-          let rows: PendingOrder[] = snap.docs.map((d) => ({
+          const poSnap = await getDocs(collection(db, "PendingOrders"));
+          const poRows: PendingOrder[] = poSnap.docs.map((d) => ({
             id: d.id,
             ...(d.data() as any),
           }));
+          // Also load from Transactions with status pending and merge
+          let txMapped: PendingOrder[] = [];
+          try {
+            const base = collection(db, "Transactions");
+            const [qSnapLower, qSnapCap] = await Promise.all([
+              getDocs(query(base, where("status", "==", "pending"))),
+              getDocs(query(base, where("status", "==", "Pending"))),
+            ]);
+            let txRows = [...qSnapLower.docs, ...qSnapCap.docs].map((d) => ({
+              id: d.id,
+              ...(d.data() as any),
+            }));
+            // Filter to purchase flow entries only
+            txRows = txRows.filter((r: any) => {
+              const hasPkg = !!(
+                r.packageTitle ||
+                r.packageKey ||
+                r.packageName
+              );
+              const c = (r.country || "").toString().toUpperCase();
+              const validCountry = c === "USA" || c === "UK" || c === "CUSTOM";
+              return hasPkg && validCountry;
+            });
+            txMapped = txRows.map((r: any) => ({
+              id: r.id,
+              userId: r.userId || "",
+              packageName:
+                r.packageTitle || r.packageKey || r.packageName || "",
+              country: r.country || null,
+              status: (r.status || "pending").toString().toLowerCase(),
+              totalAmount: r.totalAmount,
+              createdAt: r.createdAt,
+              transactionId: r.id,
+            }));
+          } catch {}
+          // Merge and dedupe by transactionId/id, prefer PendingOrders data
+          const byKey: Record<string, PendingOrder> = {};
+          const put = (row: PendingOrder, preferExisting: boolean) => {
+            const key = (row as any).transactionId || row.id;
+            if (!byKey[key]) byKey[key] = row;
+            else
+              byKey[key] = preferExisting
+                ? byKey[key]
+                : { ...byKey[key], ...row };
+          };
+          // Put TX first, then overlay with PendingOrders to prefer PendingOrders fields
+          txMapped.forEach((r) => put(r, false));
+          poRows.forEach((r) => put(r, false));
+          let rows: PendingOrder[] = Object.values(byKey);
           rows.sort((a, b) => {
             const at =
               (a.createdAt as any)?.toMillis?.() ||

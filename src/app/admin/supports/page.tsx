@@ -350,6 +350,12 @@ function SectionContent() {
               {replySuccess && (
                 <div className="text-sm text-emerald-700">{replySuccess}</div>
               )}
+              <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                <div className="text-xs text-gray-600 mb-1">User Message</div>
+                <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {replyTicket.message || "—"}
+                </div>
+              </div>
               <div className="flex flex-col">
                 <label className="text-xs text-gray-600 mb-1">Message</label>
                 <textarea

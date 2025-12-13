@@ -24,6 +24,25 @@ interface UploadItem {
   title?: string | null;
 }
 
+const StatusBadge = ({ status }: { status?: string | null }) => {
+  const s = (status || "").toString().toLowerCase();
+  const cls =
+    s === "completed"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : s === "pending"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
+      : s === "refunded"
+      ? "bg-sky-50 text-sky-700 ring-sky-200"
+      : "bg-gray-100 text-gray-700 ring-gray-200";
+  return (
+    <span
+      className={`inline-flex px-2 py-1 rounded-lg font-medium text-sm ring-1 ${cls}`}
+    >
+      {s || "—"}
+    </span>
+  );
+};
+
 export default function UserDocumentsPage() {
   return (
     <UserLayout>
@@ -271,9 +290,7 @@ function SectionContent() {
                       <div />
                     </div>
                     <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className="inline-flex px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-medium">
-                        Pending
-                      </span>
+                      <StatusBadge status={it.status} />
                       {it.country && (
                         <span className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                           {it.country}
