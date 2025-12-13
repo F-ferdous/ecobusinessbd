@@ -40,6 +40,7 @@ const navItems = [
   { label: "Coupon Codes", href: "/manager/coupons", color: "rose" },
   { label: "Amazon Courses", href: "/manager/amazon-courses", color: "violet" },
   { label: "Transactions", href: "/manager/transactions", color: "cyan" },
+  { label: "Supports", href: "/manager/supports", color: "teal" },
 ];
 
 const iconBgClass: Record<string, string> = {
@@ -49,6 +50,7 @@ const iconBgClass: Record<string, string> = {
   amber: "bg-amber-50",
   rose: "bg-rose-50",
   cyan: "bg-cyan-50",
+  teal: "bg-teal-50",
 };
 const iconFgClass: Record<string, string> = {
   emerald: "text-emerald-600",
@@ -57,6 +59,7 @@ const iconFgClass: Record<string, string> = {
   amber: "text-amber-600",
   rose: "text-rose-600",
   cyan: "text-cyan-600",
+  teal: "text-teal-600",
 };
 
 export default function ManagerSidebar({

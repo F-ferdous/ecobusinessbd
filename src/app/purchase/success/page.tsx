@@ -3,7 +3,14 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  Timestamp,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 function PurchaseSuccessContent() {
@@ -56,6 +63,16 @@ function PurchaseSuccessContent() {
         setSaving(true);
         setError("");
         const createdAt = Timestamp.now();
+        // Build deterministic transaction id for idempotency
+        const rawKey = orderDetails?.savedAt
+          ? `${effectiveUserId}_${orderDetails.savedAt}`
+          : `${effectiveUserId}_${(
+              orderDetails?.packageKey ||
+              pkg ||
+              "pkg"
+            ).toString()}_${Math.round(Number(amount) * 100)}_${currency}`;
+        const txId = rawKey.replace(/[^a-zA-Z0-9_\-]/g, "_");
+
         const payload: any = {
           userId: effectiveUserId,
           email: email || null,
@@ -81,26 +98,39 @@ function PurchaseSuccessContent() {
           if (typeof orderDetails.discountAmount !== "undefined")
             payload.discountAmount = orderDetails.discountAmount;
         }
-        const txRef = await addDoc(collection(db, "Transactions"), payload);
-        // Mirror to PendingOrders
+        // Idempotent write to Transactions
+        const txDocRef = doc(collection(db, "Transactions"), txId);
+        const existingTx = await getDoc(txDocRef);
+        if (!existingTx.exists()) {
+          await setDoc(txDocRef, payload, { merge: true });
+        }
+        // Mirror to PendingOrders using same id
         try {
           const packageName =
             payload.packageTitle || payload.packageKey || "Service Package";
           const totalAmount = Number(payload.amount || 0);
           const country = payload.country || null;
-          await addDoc(collection(db, "PendingOrders"), {
-            packageName,
-            userId: effectiveUserId,
-            status: "pending",
-            country,
-            totalAmount,
-            createdAt,
-            transactionId: txRef.id,
-            // copy coupon fields
-            couponCode: payload.couponCode || null,
-            couponPercent: payload.couponPercent || 0,
-            discountAmount: payload.discountAmount || 0,
-          });
+          const pendingRef = doc(collection(db, "PendingOrders"), txId);
+          const existingPending = await getDoc(pendingRef);
+          if (!existingPending.exists()) {
+            await setDoc(
+              pendingRef,
+              {
+                packageName,
+                userId: effectiveUserId,
+                status: "pending",
+                country,
+                totalAmount,
+                createdAt,
+                transactionId: txId,
+                // copy coupon fields
+                couponCode: payload.couponCode || null,
+                couponPercent: payload.couponPercent || 0,
+                discountAmount: payload.discountAmount || 0,
+              },
+              { merge: true }
+            );
+          }
         } catch (e) {
           // Non-blocking mirror failure
           console.error("Failed to create PendingOrders entry", e);

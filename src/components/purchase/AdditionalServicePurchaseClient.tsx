@@ -125,6 +125,34 @@ export default function AdditionalServicePurchaseClient() {
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
 
+  // Country lock rules based on selected service
+  const USA_SERVICES = React.useMemo(
+    () =>
+      new Set([
+        "us-unique-address",
+        "ein-application",
+        "itin-w7",
+        "seller-permit",
+        "boi-filing",
+        "us-trademark",
+      ]),
+    []
+  );
+  const UK_SERVICES = React.useMemo(
+    () =>
+      new Set(["uk-trademark", "confirmation-statement", "vat-registration"]),
+    []
+  );
+  const forcedCountry: "USA" | "UK" | null = React.useMemo(() => {
+    if (USA_SERVICES.has(service?.id || "")) return "USA";
+    if (UK_SERVICES.has(service?.id || "")) return "UK";
+    return null;
+  }, [service?.id, USA_SERVICES, UK_SERVICES]);
+
+  React.useEffect(() => {
+    if (forcedCountry) setCountry(forcedCountry);
+  }, [forcedCountry]);
+
   // Use the same state names as USA package page (names only; fees not used here)
   const STATE_FEES: Record<string, number> = {
     Alabama: 236,
@@ -306,11 +334,17 @@ export default function AdditionalServicePurchaseClient() {
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value as any)}
-                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white"
+                    disabled={!!forcedCountry}
+                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white disabled:opacity-70"
                   >
                     <option value="USA">USA</option>
                     <option value="UK">UK</option>
                   </select>
+                  {forcedCountry && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Country is fixed to {forcedCountry} for this service.
+                    </p>
+                  )}
                 </div>
                 {country === "USA" && (
                   <div>

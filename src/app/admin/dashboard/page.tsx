@@ -209,6 +209,9 @@ function AdminDashboardInner() {
   const [selectedPending, setSelectedPending] =
     React.useState<PendingOrder | null>(null);
   const [selectedTx, setSelectedTx] = React.useState<Tx | null>(null);
+  const [txCompanyMap, setTxCompanyMap] = React.useState<
+    Record<string, string>
+  >({});
   // UI state: filtering, search, sorting, pagination
   const [nameFilter, setNameFilter] = React.useState("");
   const [search, setSearch] = React.useState("");
@@ -279,6 +282,33 @@ function AdminDashboardInner() {
             );
             if (!cancelled && Object.keys(fetched).length > 0) {
               setUserNameMap((prev) => ({ ...prev, ...fetched }));
+            }
+          }
+          // Fetch company name for each pending order via linked Transaction
+          const txIds = Array.from(
+            new Set(rows.map((r) => (r as any).transactionId).filter(Boolean))
+          ) as string[];
+          const missingTx = txIds.filter((id) => !(id in txCompanyMap));
+          if (!cancelled && missingTx.length > 0) {
+            const fetched: Record<string, string> = {};
+            await Promise.all(
+              missingTx.map(async (tid) => {
+                try {
+                  const snap = await getDoc(doc(db, "Transactions", tid));
+                  if (snap.exists()) {
+                    const data = snap.data() as any;
+                    const name = (
+                      data?.company?.proposedName ||
+                      data?.company?.name ||
+                      ""
+                    ).toString();
+                    if (name) fetched[tid] = name;
+                  }
+                } catch {}
+              })
+            );
+            if (!cancelled && Object.keys(fetched).length > 0) {
+              setTxCompanyMap((prev) => ({ ...prev, ...fetched }));
             }
           }
         } else {
@@ -372,6 +402,10 @@ function AdminDashboardInner() {
         (r as any).packageKey ||
         (r as any).packageName ||
         "",
+      companyName:
+        status === "pending"
+          ? txCompanyMap[(r as any).transactionId || ""] || ""
+          : (r as any).company?.proposedName || (r as any).company?.name || "",
     }));
     const norm = (s: string) => (s || "").toString().toLowerCase();
     let filtered = rows;
@@ -429,6 +463,7 @@ function AdminDashboardInner() {
     pendingItems,
     items,
     userNameMap,
+    txCompanyMap,
     nameFilter,
     search,
     sortBy,
@@ -555,6 +590,50 @@ function AdminDashboardInner() {
                           selected.userId ||
                           "—"}
                       </div>
+                      {/* Company Details section (from linked Transaction) */}
+                      <div className="rounded-xl border border-gray-200 p-4">
+                        <div className="text-sm font-semibold text-gray-800 mb-2">
+                          Company Details
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+                          <div>
+                            <span className="text-gray-500">Company Name:</span>{" "}
+                            {(selectedTx as any)?.company?.proposedName ||
+                              (selectedTx as any)?.company?.name ||
+                              "—"}
+                          </div>
+                          {String(
+                            (selectedPending as any)?.country || ""
+                          ).toUpperCase() === "USA" && (
+                            <div>
+                              <span className="text-gray-500">State:</span>{" "}
+                              {(selectedTx as any)?.company?.state || "—"}
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-gray-500">Company Type:</span>{" "}
+                            {(selectedTx as any)?.company?.companyType || "—"}
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Member Type:</span>{" "}
+                            {(() => {
+                              const mt =
+                                (selectedTx as any)?.company?.memberType || "";
+                              if (!mt) return "—";
+                              const m = String(mt).toLowerCase();
+                              return m === "single"
+                                ? "Single Member"
+                                : m === "multiple"
+                                ? "Multiple Member"
+                                : mt;
+                            })()}
+                          </div>
+                          <div className="sm:col-span-2">
+                            <span className="text-gray-500">Service Type:</span>{" "}
+                            {(selectedTx as any)?.company?.serviceType || "—"}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-500">Status</div>
@@ -575,6 +654,51 @@ function AdminDashboardInner() {
                       </div>
                     </div>
                     <div>
+                      <div className="text-xs text-gray-500">Company Name</div>
+                      <div className="font-medium text-gray-900">
+                        {(selected as any)?.company?.proposedName ||
+                          (selected as any)?.company?.name ||
+                          "—"}
+                      </div>
+                    </div>
+                    {String((selected as any)?.country || "").toUpperCase() ===
+                      "USA" && (
+                      <div>
+                        <div className="text-xs text-gray-500">State</div>
+                        <div className="font-medium text-gray-900">
+                          {(selected as any)?.company?.state || "—"}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs text-gray-500">Company Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(selected as any)?.company?.companyType || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Member Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(() => {
+                          const mt =
+                            (selected as any)?.company?.memberType || "";
+                          if (!mt) return "—";
+                          const m = String(mt).toLowerCase();
+                          return m === "single"
+                            ? "Single Member"
+                            : m === "multiple"
+                            ? "Multiple Member"
+                            : mt;
+                        })()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Service Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(selected as any)?.company?.serviceType || "—"}
+                      </div>
+                    </div>
+                    <div>
                       <div className="text-xs text-gray-500">Purchase Date</div>
                       <div className="font-medium text-gray-900">
                         {formatDateOnly(selected.createdAt)}
@@ -586,6 +710,50 @@ function AdminDashboardInner() {
                       </div>
                       <div className="font-mono text-gray-900 break-all">
                         {selected.id}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Company Details section */}
+                  <div className="mt-6 rounded-xl border border-gray-200 p-4">
+                    <div className="text-sm font-semibold text-gray-800 mb-2">
+                      Company Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+                      <div>
+                        <span className="text-gray-500">Company Name:</span>{" "}
+                        {(selected as any)?.company?.proposedName ||
+                          (selected as any)?.company?.name ||
+                          "—"}
+                      </div>
+                      {String(
+                        (selected as any)?.country || ""
+                      ).toUpperCase() === "USA" && (
+                        <div>
+                          <span className="text-gray-500">State:</span>{" "}
+                          {(selected as any)?.company?.state || "—"}
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500">Company Type:</span>{" "}
+                        {(selected as any)?.company?.companyType || "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Member Type:</span>{" "}
+                        {(() => {
+                          const mt =
+                            (selected as any)?.company?.memberType || "";
+                          if (!mt) return "—";
+                          const m = String(mt).toLowerCase();
+                          return m === "single"
+                            ? "Single Member"
+                            : m === "multiple"
+                            ? "Multiple Member"
+                            : mt;
+                        })()}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-gray-500">Service Type:</span>{" "}
+                        {(selected as any)?.company?.serviceType || "—"}
                       </div>
                     </div>
                   </div>
@@ -668,6 +836,52 @@ function AdminDashboardInner() {
                       <div className="text-xs text-gray-500">Country</div>
                       <div className="font-medium text-gray-900">
                         {selectedPending.country || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Company Name</div>
+                      <div className="font-medium text-gray-900">
+                        {(selectedTx as any)?.company?.proposedName ||
+                          (selectedTx as any)?.company?.name ||
+                          "—"}
+                      </div>
+                    </div>
+                    {String(
+                      (selectedPending as any)?.country || ""
+                    ).toUpperCase() === "USA" && (
+                      <div>
+                        <div className="text-xs text-gray-500">State</div>
+                        <div className="font-medium text-gray-900">
+                          {(selectedTx as any)?.company?.state || "—"}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs text-gray-500">Company Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(selectedTx as any)?.company?.companyType || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Member Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(() => {
+                          const mt =
+                            (selectedTx as any)?.company?.memberType || "";
+                          if (!mt) return "—";
+                          const m = String(mt).toLowerCase();
+                          return m === "single"
+                            ? "Single Member"
+                            : m === "multiple"
+                            ? "Multiple Member"
+                            : mt;
+                        })()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Service Type</div>
+                      <div className="font-medium text-gray-900">
+                        {(selectedTx as any)?.company?.serviceType || "—"}
                       </div>
                     </div>
                     <div>
@@ -782,6 +996,7 @@ function AdminDashboardInner() {
                     </th>
                     <th className="py-3 pr-4 font-semibold">User Name</th>
                     <th className="py-3 pr-4 font-semibold">Package Name</th>
+                    <th className="py-3 pr-4 font-semibold">Company</th>
                     <th className="py-3 pr-4 font-semibold">Country</th>
                     {status !== "pending" && (
                       <th className="py-3 pr-4 font-semibold">Purchase Date</th>
@@ -806,12 +1021,33 @@ function AdminDashboardInner() {
                     <tr
                       key={row.id}
                       className="border-b last:border-0 hover:bg-emerald-50/40 cursor-pointer"
-                      onClick={() => {
-                        const base = pathname.startsWith("/manager")
-                          ? "/manager/orders"
-                          : "/admin/orders";
-                        const type = status === "pending" ? "pending" : "tx";
-                        router.push(`${base}/${row.id}?type=${type}`);
+                      onClick={async () => {
+                        try {
+                          if (status === "pending") {
+                            const pendingRow = row as any;
+                            setSelectedPending(pendingRow);
+                            setSelectedTx(null);
+                            const tid = pendingRow.transactionId;
+                            if (tid) {
+                              try {
+                                const snap = await getDoc(
+                                  doc(db, "Transactions", tid)
+                                );
+                                if (snap.exists())
+                                  setSelectedTx({
+                                    id: snap.id,
+                                    ...(snap.data() as any),
+                                  } as any);
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }
+                          } else {
+                            setSelected(row as any);
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }}
                     >
                       <td className="py-3 pr-4 w-14">
@@ -841,6 +1077,7 @@ function AdminDashboardInner() {
                         </div>
                       </td>
                       <td className="py-3 pr-4">{row.packageDisplay || "—"}</td>
+                      <td className="py-3 pr-4">{row.companyName || "—"}</td>
                       <td className="py-3 pr-4">{row.country || "—"}</td>
                       {status !== "pending" && (
                         <td className="py-3 pr-4">

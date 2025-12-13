@@ -167,6 +167,27 @@ const navItems = [
       </svg>
     ),
   },
+  // 8. Supports (tickets)
+  {
+    label: "Supports",
+    href: "/admin/supports",
+    color: "teal",
+    icon: (
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+      >
+        <path
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M18 13a3 3 0 00-3-3H9a3 3 0 00-3 3v4h12v-4zM9 10V7a3 3 0 016 0v3"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function AdminSidebar({

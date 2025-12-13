@@ -14,6 +14,7 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 interface TxItem {
   id: string;
@@ -33,11 +34,11 @@ interface UserMsgItem {
 }
 
 export default function UserNewMessagePage() {
-  return (
-    <UserLayout>
-      <SectionContent />
-    </UserLayout>
-  );
+  const router = useRouter();
+  React.useEffect(() => {
+    router.replace("/user/dashboard/support/create");
+  }, [router]);
+  return null;
 }
 
 function SectionContent() {

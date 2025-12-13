@@ -430,7 +430,96 @@ export default function AdminOrderDetailsPage() {
               </div>
             </div>
           </div>
+
+          {/* Company Details */}
+          <div className="mt-6 rounded-xl border border-gray-200 p-4">
+            <div className="text-sm font-medium text-gray-900 mb-2">
+              Company Details
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-700">
+              <div>
+                Company Name:{" "}
+                {detail?.company?.proposedName || detail?.company?.name || "—"}
+              </div>
+              {String(detail?.country || "").toUpperCase() === "USA" && (
+                <div>State: {detail?.company?.state || "—"}</div>
+              )}
+              <div>Company Type: {detail?.company?.companyType || "—"}</div>
+              <div>
+                Member Type:{" "}
+                {(() => {
+                  const mt = detail?.company?.memberType || "";
+                  if (!mt) return "—";
+                  const m = String(mt).toLowerCase();
+                  return m === "single"
+                    ? "Single Member"
+                    : m === "multiple"
+                    ? "Multiple Member"
+                    : mt;
+                })()}
+              </div>
+              <div className="sm:col-span-2 lg:col-span-1">
+                Service Type: {detail?.company?.serviceType || "—"}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Package Features */}
+        {Array.isArray(detail?.features) && detail.features.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Package Features
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Included in this package
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              {detail.features.map((f: any, idx: number) => (
+                <div
+                  key={`${idx}-${String(f)}`}
+                  className="flex items-start gap-2 text-sm text-gray-800"
+                >
+                  <svg
+                    className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span>{String(f)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Segment 2: Admin uploads for this order */}
         <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
@@ -561,231 +650,7 @@ export default function AdminOrderDetailsPage() {
           </div>
         </div>
 
-        {/* Segment 3: Messages */}
-        <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700 ring-1 ring-violet-100">
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 15a4 4 0 01-4 4H7l-4 4V7a4 4 0 014-4h10a4 4 0 014 4v8z"
-                />
-              </svg>
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
-              <p className="text-sm text-gray-600">
-                Send information or updates to the user
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {msgError && <div className="text-sm text-red-600">{msgError}</div>}
-            {msgSuccess && (
-              <div className="text-sm text-emerald-700">{msgSuccess}</div>
-            )}
-            <textarea
-              value={msgText}
-              onChange={(e) => setMsgText(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              rows={4}
-              placeholder="Write a message to the user..."
-              disabled={msgSending}
-            ></textarea>
-            <div className="flex items-center justify-end">
-              <button
-                onClick={async () => {
-                  try {
-                    if (!db) return;
-                    setMsgError("");
-                    setMsgSuccess("");
-                    const text = msgText.trim();
-                    if (!text) {
-                      setMsgError("Please write a message");
-                      return;
-                    }
-                    if (!detail) {
-                      setMsgError("Missing order details");
-                      return;
-                    }
-                    setMsgSending(true);
-                    const payload: any = {
-                      userName:
-                        detail.displayName ||
-                        detail.userName ||
-                        detail.displayEmail ||
-                        "",
-                      packageName: detail.packageDisplay || "",
-                      country: detail.country || null,
-                      transactionId: detail.id || detail.transactionId || null,
-                      message: text,
-                      createdAt: Timestamp.now(),
-                      uploadedById: uploaderId || null,
-                      uploadedByName: uploaderName || null,
-                      userEmail: detail.displayEmail || detail.email || null,
-                    };
-                    await addDoc(collection(db, "AdminMessages"), payload);
-                    setMsgSuccess("Message sent.");
-                    setMsgText("");
-                  } catch (e: any) {
-                    setMsgError(e?.message || "Failed to send message");
-                  } finally {
-                    setMsgSending(false);
-                  }
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
-                disabled={msgSending || !msgText.trim()}
-              >
-                {msgSending ? "Sending..." : "Send Message"}
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 rounded-xl border border-gray-200 p-0 overflow-hidden">
-            {messages.length === 0 ? (
-              <div className="p-4 text-sm text-gray-600">No messages yet</div>
-            ) : (
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-700">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-semibold">Time</th>
-                    <th className="px-4 py-3 font-semibold">Message</th>
-                    <th className="px-4 py-3 font-semibold">Uploaded By</th>
-                    <th className="px-4 py-3 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {messages.map((m) => (
-                    <tr key={m.id} className="border-t">
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                        {formatDateTime(m.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        <div className="line-clamp-2">{m.message}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {m.uploadedByName || m.uploadedById || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setMsgViewerItem(m);
-                              setMsgViewerOpen(true);
-                            }}
-                            className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={async () => {
-                              try {
-                                if (!db) return;
-                                if (!confirm("Delete this message?")) return;
-                                setMsgDeletingId(m.id);
-                                await deleteDoc(
-                                  doc(collection(db, "AdminMessages"), m.id)
-                                );
-                                setMessages((prev) =>
-                                  prev.filter((x) => x.id !== m.id)
-                                );
-                              } catch (e) {
-                                console.error(e);
-                              } finally {
-                                setMsgDeletingId("");
-                              }
-                            }}
-                            className="px-2 py-1 rounded-md text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60"
-                            disabled={msgDeletingId === m.id}
-                          >
-                            {msgDeletingId === m.id ? "Deleting..." : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
-        {/* Segment 4: Messages from User */}
-        <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 15a4 4 0 01-4 4H7l-4 4V7a4 4 0 014-4h10a4 4 0 014 4v8z"
-                />
-              </svg>
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Messages from User
-              </h2>
-              <p className="text-sm text-gray-600">
-                Messages sent by the user for this package
-              </p>
-            </div>
-          </div>
-          <div className="rounded-xl border border-gray-200 overflow-hidden">
-            {userMessages.length === 0 ? (
-              <div className="p-4 text-sm text-gray-600">
-                No messages from user
-              </div>
-            ) : (
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-700">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-semibold">Time</th>
-                    <th className="px-4 py-3 font-semibold">Message</th>
-                    <th className="px-4 py-3 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userMessages.map((m) => (
-                    <tr key={m.id} className="border-t">
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                        {formatDateTime(m.createdAt)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        <div className="line-clamp-2 whitespace-pre-wrap">
-                          {m.message}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => {
-                            setUserMsgViewerItem(m);
-                            setUserMsgViewerOpen(true);
-                          }}
-                          className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+        {/* Messages sections removed per request */}
 
         {/* Segment 5: Status */}
         {/* Segment 4: Status */}

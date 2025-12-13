@@ -2,11 +2,13 @@
 
 import React from "react";
 import UserLayout from "@/components/user/UserLayout";
+import Link from "next/link";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   getDocs,
+  onSnapshot,
   query,
   where,
   Timestamp,
@@ -34,6 +36,7 @@ function SectionContent() {
   const [uid, setUid] = React.useState<string | null>(null);
   const [email, setEmail] = React.useState<string | null>(null);
   const [items, setItems] = React.useState<UploadItem[]>([]);
+  const [txItems, setTxItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string>("");
   const [viewerOpen, setViewerOpen] = React.useState<boolean>(false);
@@ -106,6 +109,24 @@ function SectionContent() {
     return () => {
       cancelled = true;
     };
+  }, [uid]);
+
+  // Subscribe to user's purchased packages (Transactions) to show as cards
+  React.useEffect(() => {
+    if (!db || !uid) return;
+    const q = query(
+      collection(db, "Transactions"),
+      where("userId", "==", uid || "")
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        setTxItems(list);
+      },
+      () => setTxItems([])
+    );
+    return () => unsub();
   }, [uid]);
 
   const formatDateDMY = (ts?: Timestamp | null) => {
@@ -218,164 +239,56 @@ function SectionContent() {
         ) : error ? (
           <div className="text-rose-600 text-sm">{error}</div>
         ) : (
-          <div className="overflow-x-auto bg-white rounded-2xl shadow ring-1 ring-gray-100">
+          <div className="bg-white rounded-2xl shadow ring-1 ring-gray-100">
             {/* Controls */}
-            <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 border-b border-gray-100">
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-600 mb-1">Search</label>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Search by package, title, or country"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-600 mb-1">Sort By</label>
-                <div className="flex gap-2">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm flex-1"
-                  >
-                    <option value="date">Upload Date</option>
-                    <option value="package">Package</option>
-                    <option value="title">Title</option>
-                    <option value="country">Country</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-                    }
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                    title={`Sort ${
-                      sortDir === "asc" ? "ascending" : "descending"
+            <div className="p-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {txItems.map((it) => (
+                  <Link
+                    key={it.id}
+                    href={`/user/documents/view?tx=${encodeURIComponent(
+                      it.id
+                    )}&package=${encodeURIComponent(
+                      it.packageTitle || it.packageKey || "Service Package"
+                    )}${
+                      it.country
+                        ? `&country=${encodeURIComponent(it.country)}`
+                        : ""
                     }`}
+                    className="block rounded-2xl bg-white shadow ring-1 ring-gray-100 hover:shadow-md transition p-5"
                   >
-                    {sortDir === "asc" ? "Asc" : "Desc"}
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-600 mb-1">
-                  Rows per page
-                </label>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-sm text-gray-500">Package</div>
+                        <div className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <span>
+                            {it.packageTitle ||
+                              it.packageKey ||
+                              "Service Package"}
+                          </span>
+                        </div>
+                      </div>
+                      <div />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="inline-flex px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-medium">
+                        Pending
+                      </span>
+                      {it.country && (
+                        <span className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                          {it.country}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+                {txItems.length === 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-6 text-gray-600">
+                    No purchased packages yet.
+                  </div>
+                )}
               </div>
             </div>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Sl
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Package name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Country
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Document Title
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Upload Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {processed.rows.map((it, idx) => (
-                  <tr key={it.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {(processed.currentPage - 1) * pageSize + idx + 1}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.packageName || ""}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.country || ""}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {it.title || getDocName(it)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {formatDateDMY(it.uploadTime)}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {it.fileUrl ? (
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() => openViewer(it)}
-                            className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                          >
-                            View
-                          </button>
-                          <a
-                            href={it.fileUrl}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-2 py-1 rounded-md text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100"
-                          >
-                            Download
-                          </a>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">No file</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {processed.total === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-8 text-center text-sm text-gray-500"
-                    >
-                      No documents yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {/* Pagination */}
-            {processed.total > 0 && (
-              <div className="flex items-center justify-between gap-3 p-3 border-t border-gray-100 text-sm">
-                <div className="text-gray-600">
-                  Page {processed.currentPage} of {processed.totalPages}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 disabled:opacity-50"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={processed.currentPage <= 1}
-                  >
-                    Prev
-                  </button>
-                  <button
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-700 disabled:opacity-50"
-                    onClick={() =>
-                      setPage((p) => Math.min(processed.totalPages, p + 1))
-                    }
-                    disabled={processed.currentPage >= processed.totalPages}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
         {/* Modal viewer */}

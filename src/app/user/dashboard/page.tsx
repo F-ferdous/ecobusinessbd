@@ -4,7 +4,7 @@ import UserLayout from "@/components/user/UserLayout";
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { addDoc, collection, Timestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const cards = [
@@ -112,6 +112,7 @@ function DashboardContent() {
   const router = useRouter();
   const [uid, setUid] = React.useState<string | null>(null);
   const [email, setEmail] = React.useState<string | null>(null);
+  const [displayName, setDisplayName] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string>("");
   const [savedOnce, setSavedOnce] = React.useState(false);
@@ -133,44 +134,31 @@ function DashboardContent() {
       }
       setUid(u.uid);
       setEmail(u.email || null);
+      setDisplayName(u.displayName || null);
     });
     return () => unsub();
   }, [router]);
 
+  // Load displayName from Users collection to ensure proper name is shown
   React.useEffect(() => {
-    const shouldPersist =
-      status === "success" && uid && !savedOnce && amount > 0 && db;
-    if (!shouldPersist) return;
-    let cancelled = false;
     (async () => {
       try {
-        setSaving(true);
-        setSaveError("");
-        const payload = {
-          userId: uid || "",
-          email: email || null,
-          packageKey: pkg || null,
-          packageTitle: titleFromQuery || (pkg ? pkg : null),
-          amount,
-          currency,
-          status: "completed",
-          createdAt: Timestamp.now(),
-        } as const;
-        await addDoc(collection(db!, "Transactions"), payload);
-        if (!cancelled) setSavedOnce(true);
-      } catch (e: unknown) {
-        if (!cancelled)
-          setSaveError(
-            e instanceof Error ? e.message : "Failed to record transaction"
-          );
-      } finally {
-        if (!cancelled) setSaving(false);
+        if (!db || !uid) return;
+        const snap = await getDoc(doc(db, "Users", uid));
+        if (snap.exists()) {
+          const dn = (snap.data() as any)?.displayName;
+          if (dn && typeof dn === "string" && dn.trim()) {
+            setDisplayName(dn);
+          }
+        }
+      } catch (_) {
+        // non-blocking
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, uid, email, savedOnce, amount, currency, pkg]);
+  }, [uid]);
+
+  // Intentionally removed client-side persistence from dashboard to avoid duplicate
+  // transaction writes. Persistence now happens exclusively on /purchase/success.
 
   // Load user's transactions and compute stats (no indexes)
   React.useEffect(() => {
@@ -207,6 +195,20 @@ function DashboardContent() {
     };
   }, [uid]);
 
+  const rawName =
+    (displayName && displayName.trim()) || (email ? email.split("@")[0] : "");
+  const initials = rawName
+    ? rawName
+        .trim()
+        .split(/\s+/)
+        .map((s) => (s[0] || "").toUpperCase())
+        .slice(0, 2)
+        .join("")
+    : "U";
+  const prettyName = rawName
+    ? rawName.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : "";
+
   return (
     <section className="py-4">
       {status === "success" && (
@@ -241,6 +243,18 @@ function DashboardContent() {
           </div>
         </div>
       )}
+      <div className="mb-6 rounded-2xl bg-gradient-to-r from-emerald-50 to-emerald-100 ring-1 ring-emerald-100 p-6 flex items-center gap-4">
+        <div className="h-12 w-12 rounded-xl bg-white text-emerald-700 flex items-center justify-center font-semibold shadow-sm">
+          {initials}
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm text-emerald-700">Welcome</div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+            {prettyName ? `Hello, ${prettyName} ` : "Hello !"}
+          </h1>
+          {email && <p className="text-sm text-gray-600 truncate">{email}</p>}
+        </div>
+      </div>
       <div className="grid gap-4 sm:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c, i) => {
           const colors = colorMap[c.color];

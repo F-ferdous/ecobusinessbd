@@ -87,100 +87,7 @@ function PurchasesContent() {
     return () => unsub();
   }, [router]);
 
-  // Persist success redirect params (Stripe success) same as dashboard did
-  React.useEffect(() => {
-    const status = (params.get("status") || "").toLowerCase();
-    const pkg = params.get("pkg") || "";
-    const titleFromQuery = params.get("title") || "";
-    const amountFromQuery = Number(params.get("amount") || "0");
-    const currency = (params.get("currency") || "USD").toUpperCase();
-    let cancelled = false;
-
-    (async () => {
-      if (!db) return;
-      // Read any cached order details first
-      let orderDetails: any = null;
-      try {
-        if (typeof window !== "undefined") {
-          const raw = window.localStorage.getItem("lastOrderDetails");
-          if (raw) orderDetails = JSON.parse(raw);
-        }
-      } catch (_) {
-        /* ignore */
-      }
-
-      const effectiveUserId = uid || orderDetails?.userId || "";
-      if (!(status === "success")) return;
-
-      const amount =
-        amountFromQuery > 0
-          ? amountFromQuery
-          : Number(orderDetails?.amount || 0);
-      if (!(amount > 0)) return;
-      if (!effectiveUserId) return; // Ensure we never write without a userId
-
-      try {
-        const payload: any = {
-          userId: effectiveUserId,
-          email: email || null,
-          packageKey: pkg || orderDetails?.packageKey || null,
-          packageTitle:
-            titleFromQuery || orderDetails?.packageTitle || (pkg ? pkg : null),
-          amount,
-          currency,
-          status: "pending",
-          createdAt: Timestamp.now(),
-        };
-        if (orderDetails) {
-          payload.country = orderDetails.country || null;
-          payload.company = orderDetails.company || null;
-          payload.addOns = orderDetails.addOns || [];
-          payload.features = orderDetails.features || [];
-          payload.breakdown = orderDetails.breakdown || undefined;
-        }
-
-        const txRef = await addDoc(collection(db, "Transactions"), payload);
-        try {
-          const packageName =
-            payload.packageTitle || payload.packageKey || "Service Package";
-          const totalAmount = Number(payload.amount || 0);
-          const country = payload.country || null;
-          await addDoc(collection(db, "PendingOrders"), {
-            packageName,
-            userId: effectiveUserId,
-            status: "pending",
-            country,
-            totalAmount,
-            createdAt: payload.createdAt,
-            transactionId: txRef.id,
-          });
-        } catch (e) {
-          // Non-blocking: if PendingOrders creation fails, we don't block the user flow
-          console.error("Failed to create PendingOrders entry", e);
-        }
-        if (!cancelled) {
-          // Clean URL params after save
-          const url = new URL(window.location.href);
-          url.searchParams.delete("status");
-          url.searchParams.delete("pkg");
-          url.searchParams.delete("amount");
-          url.searchParams.delete("currency");
-          url.searchParams.delete("title");
-          try {
-            if (typeof window !== "undefined")
-              window.localStorage.removeItem("lastOrderDetails");
-          } catch (_) {}
-          window.history.replaceState({}, "", url.toString());
-        }
-      } catch (e) {
-        // Non-blocking
-        console.error("Failed to record transaction from success redirect", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [params, uid, email]);
+  // Removed client-side persistence from purchases page to avoid duplicates.
 
   // Subscribe to current user's transactions
   React.useEffect(() => {
@@ -324,7 +231,7 @@ function PurchasesContent() {
             </div>
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="inline-flex px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-medium">
-                {it.status || "completed"}
+                {"completed"}
               </span>
               <span className="text-gray-500">
                 {it.createdAt?.toDate
@@ -379,10 +286,15 @@ function PurchasesContent() {
                           ? "UK Company Formation"
                           : "Purchase Details"}
                       </h2>
-                      <div className="text-xs text-gray-600 mt-0.5 truncate">
-                        {detail.packageTitle ||
-                          detail.packageKey ||
-                          "Service Package"}
+                      <div className="text-xs text-gray-600 mt-0.5 truncate flex items-center gap-2">
+                        <span>
+                          {detail.packageTitle ||
+                            detail.packageKey ||
+                            "Service Package"}
+                        </span>
+                        <span className="inline-flex px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+                          Pending
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -445,7 +357,7 @@ function PurchasesContent() {
                         <div className="flex items-start justify-between gap-4">
                           <span className="text-gray-600">Status</span>
                           <span className="inline-flex px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-medium">
-                            {detail.status || "completed"}
+                            {"completed"}
                           </span>
                         </div>
                         <div className="flex items-start justify-between gap-4">

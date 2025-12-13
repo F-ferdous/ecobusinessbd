@@ -107,7 +107,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/coming-soon"
+                  href="/services/additional-services/"
                   className="text-gray-300 hover:text-white transition-colors"
                 >
                   Bank Account Opening
@@ -115,7 +115,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/coming-soon"
+                  href="/services/additional-services/"
                   className="text-gray-300 hover:text-white transition-colors"
                 >
                   Virtual Office
@@ -123,7 +123,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/coming-soon"
+                  href="/services/additional-services/"
                   className="text-gray-300 hover:text-white transition-colors"
                 >
                   Tax Registration

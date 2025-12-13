@@ -88,26 +88,6 @@ const navItems = [
     ),
   },
   {
-    label: "Messages",
-    href: "/user/dashboard/messages",
-    color: "amber",
-    icon: (
-      <svg
-        className="h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-      >
-        <path
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M7 8h10M7 12h7M5 20l4-4h10a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14z"
-        />
-      </svg>
-    ),
-  },
-  {
     label: "Support",
     href: "/user/dashboard/support",
     color: "emerald",
@@ -173,6 +153,16 @@ export default function UserSidebar({
   }, []);
   const router = useRouter();
 
+  // Expand Support submenu when on any support route
+  const isSupportPath = React.useMemo(
+    () => pathname.startsWith("/user/dashboard/support"),
+    [pathname]
+  );
+  const [supportOpen, setSupportOpen] = React.useState<boolean>(false);
+  React.useEffect(() => {
+    setSupportOpen(isSupportPath);
+  }, [isSupportPath]);
+
   const iconBgClass: Record<string, string> = {
     emerald: "bg-emerald-50",
     sky: "bg-sky-50",
@@ -226,6 +216,74 @@ export default function UserSidebar({
               const color = item.color as string;
               const iconBg = iconBgClass[color] || "bg-gray-50";
               const iconFg = iconFgClass[color] || "text-gray-600";
+              // Special rendering for Support with dropdown submenu
+              if (item.label === "Support") {
+                const parentActive = pathname.startsWith(hrefNorm);
+                return (
+                  <div key={item.href} className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setSupportOpen((v) => !v)}
+                      className={`w-full group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all ${
+                        parentActive
+                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <span
+                          className={`shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-lg ${iconBg} ${iconFg}`}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="tracking-tight">{item.label}</span>
+                      </span>
+                      <svg
+                        className={`h-4 w-4 transition-transform ${
+                          supportOpen ? "rotate-180" : "rotate-0"
+                        }`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {supportOpen && (
+                      <div className="pl-10 pr-2 space-y-1">
+                        <Link
+                          href="/user/dashboard/support/create"
+                          onClick={() => onNavigate?.()}
+                          className={`block px-3 py-2 rounded-lg text-[14px] font-medium transition ${
+                            pathname === "/user/dashboard/support/create"
+                              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                              : "text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          Create Tickets
+                        </Link>
+                        <Link
+                          href="/user/dashboard/support/my-tickets"
+                          onClick={() => onNavigate?.()}
+                          className={`block px-3 py-2 rounded-lg text-[14px] font-medium transition ${
+                            pathname === "/user/dashboard/support/my-tickets"
+                              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                              : "text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          My Ticket
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              // Default link item
               return (
                 <Link
                   key={item.href}
