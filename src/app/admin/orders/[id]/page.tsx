@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -24,6 +25,7 @@ export default function AdminOrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const id = params?.id || "";
   const type = (search.get("type") || "pending").toLowerCase();
 
@@ -56,6 +58,7 @@ export default function AdminOrderDetailsPage() {
   const [userMsgViewerItem, setUserMsgViewerItem] = React.useState<any | null>(
     null
   );
+  const [pendingLink, setPendingLink] = React.useState<any | null>(null);
 
   const formatDateTime = (ts?: Timestamp) =>
     ts
@@ -99,6 +102,22 @@ export default function AdminOrderDetailsPage() {
                 enriched = { ...tx, pending: base };
               }
             } catch {}
+          }
+        } else {
+          try {
+            const q1 = query(
+              collection(db, "PendingOrders"),
+              where("transactionId", "==", id)
+            );
+            const snap = await getDocs(q1);
+            if (!cancelled && !snap.empty) {
+              const d = snap.docs[0];
+              setPendingLink({ id: d.id, ...(d.data() as any) });
+            } else if (!cancelled) {
+              setPendingLink(null);
+            }
+          } catch {
+            if (!cancelled) setPendingLink(null);
           }
         }
 
@@ -268,7 +287,11 @@ export default function AdminOrderDetailsPage() {
             </p>
           </div>
           <Link
-            href="/admin/dashboard?status=pending"
+            href={
+              pathname.startsWith("/manager")
+                ? "/manager/dashboard?status=pending"
+                : "/admin/dashboard?status=pending"
+            }
             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Back to Sales Dashboard
@@ -319,7 +342,7 @@ export default function AdminOrderDetailsPage() {
         )}
 
         {/* Segment 1: Purchase details */}
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
+        <div className="rounded-2xl bg-emerald-50/40 shadow-sm ring-1 ring-emerald-100 p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
@@ -383,7 +406,7 @@ export default function AdminOrderDetailsPage() {
               value={formatDateTime(detail?.createdAt)}
             />
           </div>
-          <div className="mt-4 rounded-xl border border-dashed border-gray-200 p-4">
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 border-dashed p-4">
             <div className="text-sm font-medium text-gray-900 mb-2">
               Amount Breakdown
             </div>
@@ -432,7 +455,7 @@ export default function AdminOrderDetailsPage() {
           </div>
 
           {/* Company Details */}
-          <div className="mt-6 rounded-xl border border-gray-200 p-4">
+          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
             <div className="text-sm font-medium text-gray-900 mb-2">
               Company Details
             </div>
@@ -467,7 +490,7 @@ export default function AdminOrderDetailsPage() {
 
         {/* Package Features */}
         {Array.isArray(detail?.features) && detail.features.length > 0 && (
-          <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
+          <div className="mt-6 rounded-2xl bg-indigo-50/40 shadow-sm ring-1 ring-indigo-100 p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
@@ -522,7 +545,7 @@ export default function AdminOrderDetailsPage() {
         )}
 
         {/* Segment 2: Admin uploads for this order */}
-        <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
+        <div className="mt-6 rounded-2xl bg-sky-50/40 shadow-sm ring-1 ring-sky-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
@@ -654,7 +677,7 @@ export default function AdminOrderDetailsPage() {
 
         {/* Segment 5: Status */}
         {/* Segment 4: Status */}
-        <div className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 p-6">
+        <div className="mt-6 rounded-2xl bg-amber-50/40 shadow-sm ring-1 ring-amber-100 p-6">
           <div className="flex items-center gap-3 mb-4">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
               <svg
@@ -690,7 +713,7 @@ export default function AdminOrderDetailsPage() {
                 ? "completed"
                 : "pending"}
             </span>
-            {type === "pending" && (
+            {(detail?.status || type) !== "completed" && (
               <button
                 onClick={async () => {
                   try {
@@ -699,44 +722,51 @@ export default function AdminOrderDetailsPage() {
                     setStatusUpdating(true);
                     // Ensure we have tx id and pending id
                     const txId = detail?.id || detail?.transactionId || "";
-                    const pendingId = id;
+                    const pendingId =
+                      type === "pending" ? id : pendingLink?.id || "";
                     if (!txId) throw new Error("Missing transaction ID");
-                    if (!pendingId) throw new Error("Missing pending order ID");
                     // 1) Update transaction status -> completed
                     await updateDoc(doc(collection(db, "Transactions"), txId), {
                       status: "completed",
                     });
-                    // 2) Create CompletedOrders from pending data
-                    const pending = (detail as any)?.pending || {};
-                    const completedPayload: any = {
-                      userId: pending.userId || detail?.userId || null,
-                      packageName:
-                        pending.packageName || detail?.packageDisplay || null,
-                      country: pending.country || detail?.country || null,
-                      status: "completed",
-                      totalAmount:
-                        pending.totalAmount || detail?.amount || null,
-                      createdAt:
-                        pending.createdAt ||
-                        detail?.createdAt ||
-                        Timestamp.now(),
-                      completedAt: Timestamp.now(),
-                      transactionId: txId,
-                    };
-                    await addDoc(
-                      collection(db, "CompletedOrders"),
-                      completedPayload
-                    );
-                    // 3) Delete from PendingOrders
-                    await deleteDoc(
-                      doc(collection(db, "PendingOrders"), pendingId)
-                    );
+                    // 2) If there is a PendingOrders doc, mirror to CompletedOrders and delete pending
+                    if (pendingId) {
+                      const pending =
+                        type === "pending"
+                          ? (detail as any)?.pending || {}
+                          : pendingLink || {};
+                      const completedPayload: any = {
+                        userId: pending.userId || detail?.userId || null,
+                        packageName:
+                          pending.packageName || detail?.packageDisplay || null,
+                        country: pending.country || detail?.country || null,
+                        status: "completed",
+                        totalAmount:
+                          pending.totalAmount || detail?.amount || null,
+                        createdAt:
+                          pending.createdAt ||
+                          detail?.createdAt ||
+                          Timestamp.now(),
+                        completedAt: Timestamp.now(),
+                        transactionId: txId,
+                      };
+                      await addDoc(
+                        collection(db, "CompletedOrders"),
+                        completedPayload
+                      );
+                      await deleteDoc(
+                        doc(collection(db, "PendingOrders"), pendingId)
+                      );
+                    }
                     // Update local state
                     setDetail((prev: any) =>
                       prev ? { ...prev, status: "completed" } : prev
                     );
                     // Redirect to the transaction details page so it appears under Completed Orders tab
-                    router.replace(`/admin/orders/${txId}?type=tx`);
+                    const base = pathname.startsWith("/manager")
+                      ? "/manager/orders"
+                      : "/admin/orders";
+                    router.replace(`${base}/${txId}?type=tx`);
                   } catch (e: any) {
                     setStatusError(e?.message || "Failed to mark completed");
                   } finally {

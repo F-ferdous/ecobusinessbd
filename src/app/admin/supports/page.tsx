@@ -61,6 +61,17 @@ function SectionContent() {
   const [replyError, setReplyError] = React.useState<string>("");
   const [replySuccess, setReplySuccess] = React.useState<string>("");
   const [closingId, setClosingId] = React.useState<string | null>(null);
+  // Ticket thread state
+  const [fbLoading, setFbLoading] = React.useState(false);
+  const [fbError, setFbError] = React.useState<string>("");
+  const [feedback, setFeedback] = React.useState<
+    Array<{
+      id: string;
+      adminName?: string | null;
+      message: string;
+      createdAt?: Timestamp | null;
+    }>
+  >([]);
 
   const loadTickets = React.useCallback(async () => {
     if (!db) return;
@@ -147,6 +158,42 @@ function SectionContent() {
     setReplySuccess("");
     setReplyOpen(true);
   };
+
+  // Load full thread when a ticket is opened
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!db || !replyOpen || !replyTicket) return;
+        setFbLoading(true);
+        setFbError("");
+        setFeedback([]);
+        const fbCol = collection(
+          doc(collection(db, "SupportTickets"), replyTicket.id),
+          "Feedback"
+        );
+        const snap = await getDocs(fbCol);
+        const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        rows.sort((a: any, b: any) => {
+          const at =
+            a.createdAt?.toMillis?.() ??
+            (a.createdAt ? a.createdAt.seconds * 1000 : 0);
+          const bt =
+            b.createdAt?.toMillis?.() ??
+            (b.createdAt ? b.createdAt.seconds * 1000 : 0);
+          return at - bt; // chronological
+        });
+        if (!cancelled) setFeedback(rows as any);
+      } catch (e: any) {
+        if (!cancelled) setFbError(e?.message || "Failed to load messages");
+      } finally {
+        if (!cancelled) setFbLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replyOpen, replyTicket]);
 
   const sendReply = async () => {
     try {
@@ -350,11 +397,66 @@ function SectionContent() {
               {replySuccess && (
                 <div className="text-sm text-emerald-700">{replySuccess}</div>
               )}
-              <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
-                <div className="text-xs text-gray-600 mb-1">User Message</div>
-                <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                  {replyTicket.message || "—"}
+              {/* Thread */}
+              <div className="space-y-3">
+                {/* Initial user message */}
+                <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <span>{replyTicket.userName || "User"}</span>
+                    <span>
+                      {replyTicket.createdAt
+                        ? (replyTicket.createdAt as any)?.toMillis?.()
+                          ? new Date(
+                              (replyTicket.createdAt as any).toMillis()
+                            ).toLocaleString()
+                          : new Date(
+                              ((replyTicket.createdAt as any).seconds || 0) *
+                                1000
+                            ).toLocaleString()
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                    {replyTicket.message || "—"}
+                  </div>
                 </div>
+                {/* Feedback messages */}
+                {fbLoading && (
+                  <div className="text-sm text-gray-600">
+                    Loading previous messages…
+                  </div>
+                )}
+                {fbError && (
+                  <div className="text-sm text-rose-600">{fbError}</div>
+                )}
+                {!fbLoading && !fbError && feedback.length > 0 && (
+                  <div className="space-y-3">
+                    {feedback.map((f) => (
+                      <div
+                        key={f.id}
+                        className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3"
+                      >
+                        <div className="flex items-center justify-between text-xs text-gray-600">
+                          <span>{f.adminName || "Admin"}</span>
+                          <span>
+                            {f.createdAt
+                              ? (f.createdAt as any)?.toMillis?.()
+                                ? new Date(
+                                    (f.createdAt as any).toMillis()
+                                  ).toLocaleString()
+                                : new Date(
+                                    ((f.createdAt as any).seconds || 0) * 1000
+                                  ).toLocaleString()
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
+                          {f.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col">
                 <label className="text-xs text-gray-600 mb-1">Message</label>

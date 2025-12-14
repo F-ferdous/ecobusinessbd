@@ -861,7 +861,7 @@ function AdminDashboardInner() {
                     </svg>
                   </button>
                 </div>
-                <div className="px-6 py-5 space-y-6">
+                <div className="px-6 py-5 space-y-6 bg-emerald-50/40 ring-1 ring-emerald-100 rounded-b-xl">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <div className="text-xs text-gray-500">User</div>
@@ -951,7 +951,7 @@ function AdminDashboardInner() {
 
                   {/* Linked Transaction Preview */}
                   {selectedTx && (
-                    <div className="rounded-xl border border-gray-200 p-4">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
                       <div className="text-sm font-semibold text-gray-800 mb-2">
                         Transaction Summary
                       </div>
@@ -998,22 +998,51 @@ function AdminDashboardInner() {
                       onClick={async () => {
                         try {
                           if (!selectedPending) return;
-                          await (
-                            await import("firebase/firestore")
-                          ).updateDoc(
-                            doc(db, "PendingOrders", selectedPending.id),
-                            { status: "completed" }
+                          const { updateDoc, addDoc, deleteDoc } = await import(
+                            "firebase/firestore"
                           );
+                          const txId =
+                            (selectedPending as any).transactionId ||
+                            (selectedTx as any)?.id ||
+                            "";
+                          if (!txId) {
+                            console.warn(
+                              "Missing transactionId on pending row"
+                            );
+                          } else {
+                            await updateDoc(doc(db, "Transactions", txId), {
+                              status: "completed",
+                            });
+                          }
+                          const completedPayload: any = {
+                            userId: selectedPending.userId || null,
+                            packageName: selectedPending.packageName || null,
+                            country: selectedPending.country || null,
+                            status: "completed",
+                            totalAmount:
+                              (selectedPending as any).totalAmount ||
+                              (selectedTx as any)?.amount ||
+                              null,
+                            createdAt:
+                              (selectedPending as any).createdAt ||
+                              (selectedTx as any)?.createdAt ||
+                              Timestamp.now(),
+                            completedAt: Timestamp.now(),
+                            transactionId: txId || null,
+                          };
+                          await addDoc(
+                            collection(db, "CompletedOrders"),
+                            completedPayload
+                          );
+                          await deleteDoc(
+                            doc(db, "PendingOrders", selectedPending.id)
+                          );
+                          // Remove from list and close modal
                           setPendingItems((prev) =>
-                            prev.map((it) =>
-                              it.id === selectedPending.id
-                                ? { ...it, status: "completed" }
-                                : it
-                            )
+                            prev.filter((it) => it.id !== selectedPending.id)
                           );
-                          setSelectedPending((prev) =>
-                            prev ? { ...prev, status: "completed" } : prev
-                          );
+                          setSelectedPending(null);
+                          setSelectedTx(null);
                         } catch (e) {
                           console.error(e);
                         }
@@ -1150,7 +1179,9 @@ function AdminDashboardInner() {
                                 const base = pathname.startsWith("/manager")
                                   ? "/manager/orders"
                                   : "/admin/orders";
-                                router.push(`${base}/${row.id}?type=pending`);
+                                const targetId =
+                                  (row as any).transactionId || row.id;
+                                router.push(`${base}/${targetId}?type=tx`);
                               }}
                               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow hover:bg-emerald-700 active:scale-[.99]"
                             >

@@ -274,17 +274,27 @@ function SectionContent() {
                         ? `&country=${encodeURIComponent(it.country)}`
                         : ""
                     }`}
-                    className="block rounded-2xl bg-white shadow ring-1 ring-gray-100 hover:shadow-md transition p-5"
+                    className={`block rounded-2xl shadow ring-1 hover:shadow-md transition p-5 ${
+                      (it.status || "").toString().toLowerCase() === "completed"
+                        ? "bg-emerald-50/40 ring-emerald-100"
+                        : "bg-amber-50/40 ring-amber-100"
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <div className="text-sm text-gray-500">Package</div>
-                        <div className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                          <span>
-                            {it.packageTitle ||
-                              it.packageKey ||
-                              "Service Package"}
-                          </span>
+                        <div className="text-xl font-semibold text-gray-900">
+                          {(
+                            it.company?.proposedName ||
+                            it.company?.name ||
+                            ""
+                          ).toString() || "—"}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-0.5">
+                          {(
+                            it.packageTitle ||
+                            it.packageKey ||
+                            "Service Package"
+                          ).toString()}
                         </div>
                       </div>
                       <div />

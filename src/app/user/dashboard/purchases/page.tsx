@@ -221,11 +221,19 @@ function PurchasesContent() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((it) => (
+        {items.map((it, idx) => (
           <Link
             key={it.id}
             href={`/user/dashboard/purchases?view=${it.id}`}
-            className="block rounded-2xl bg-white shadow ring-1 ring-gray-100 hover:shadow-md transition p-5"
+            className={`block rounded-2xl shadow ring-1 hover:shadow-md transition p-5 ${
+              [
+                "bg-emerald-50/40 ring-emerald-100",
+                "bg-sky-50/40 ring-sky-100",
+                "bg-indigo-50/40 ring-indigo-100",
+                "bg-amber-50/40 ring-amber-100",
+                "bg-violet-50/40 ring-violet-100",
+              ][idx % 5]
+            }`}
           >
             <div className="flex items-start justify-between">
               <div>
@@ -249,8 +257,8 @@ function PurchasesContent() {
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between text-sm">
-              <StatusBadge status={it.status} />
-              <span className="text-gray-500">
+              <div className="text-xs text-gray-700">Payment: Completed</div>
+              <span className="text-gray-600">
                 {it.createdAt?.toDate
                   ? new Date(it.createdAt.toDate()).toLocaleString()
                   : ""}
