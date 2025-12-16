@@ -11,6 +11,8 @@ import {
   query,
   where,
   Timestamp,
+  getDoc,
+  doc,
 } from "firebase/firestore";
 
 type UploadRow = {
@@ -41,9 +43,14 @@ function Content() {
   const [rows, setRows] = React.useState<UploadRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string>("");
+  const [txDetail, setTxDetail] = React.useState<any | null>(null);
+  const [messages, setMessages] = React.useState<any[]>([]);
+  const [msgViewerOpen, setMsgViewerOpen] = React.useState(false);
+  const [msgViewerItem, setMsgViewerItem] = React.useState<any | null>(null);
 
   const pkgTitle = params.get("package") || "Service Package";
   const country = params.get("country") || "";
+  const txId = params.get("tx") || "";
 
   React.useEffect(() => {
     if (!auth) return;
@@ -107,6 +114,63 @@ function Content() {
     };
   }, [uid, pkgTitle, country]);
 
+  // Load the transaction detail for header info
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!db || !txId) return;
+        const snap = await getDoc(doc(db, "Transactions", txId));
+        if (!cancelled)
+          setTxDetail(
+            snap.exists() ? { id: snap.id, ...(snap.data() as any) } : null
+          );
+      } catch (_) {
+        if (!cancelled) setTxDetail(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [txId]);
+
+  // Load admin messages for this transaction
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!db || !txId) {
+          setMessages([]);
+          return;
+        }
+        const q1 = query(
+          collection(db, "AdminMessages"),
+          where("transactionId", "==", txId)
+        );
+        const snap = await getDocs(q1);
+        const rows = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as any) }))
+          .sort((a, b) => {
+            const at =
+              (a.createdAt as any)?.toMillis?.() ||
+              ((a.createdAt as any)?.seconds || 0) * 1000;
+            const bt =
+              (b.createdAt as any)?.toMillis?.() ||
+              ((b.createdAt as any)?.seconds || 0) * 1000;
+            return bt - at;
+          });
+        if (!cancelled) setMessages(rows);
+      } catch (_) {
+        if (!cancelled) setMessages([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [txId]);
+
+  // (Removed) User replies are not loaded; messages are view-only from admin
+
   const formatDateDMY = (ts?: Timestamp | null) => {
     if (!ts) return "—";
     const ms =
@@ -147,6 +211,93 @@ function Content() {
             {pkgTitle}
             {country ? ` • ${country}` : ""}
           </p>
+        </div>
+
+        {/* Package & Company Details */}
+        <div className="mb-6 rounded-2xl bg-emerald-50/40 shadow-sm ring-1 ring-emerald-100 p-5">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7l9-4 9 4-9 4-9-4m0 6l9 4 9-4"
+                  />
+                </svg>
+              </span>
+              <div>
+                <div className="text-lg font-semibold text-gray-900">
+                  Package & Company
+                </div>
+                <div className="text-sm text-gray-600">
+                  Details of your purchased package
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="text-xs text-gray-500">Company Name</div>
+              <div className="font-medium text-gray-900">
+                {txDetail?.company?.proposedName ||
+                  txDetail?.company?.name ||
+                  "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Country</div>
+              <div className="font-medium text-gray-900">
+                {txDetail?.country || country || "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Package Name</div>
+              <div className="font-medium text-gray-900">
+                {txDetail?.packageTitle ||
+                  txDetail?.packageKey ||
+                  pkgTitle ||
+                  "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Company Type</div>
+              <div className="font-medium text-gray-900">
+                {txDetail?.company?.companyType || "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Member Type</div>
+              <div className="font-medium text-gray-900">
+                {(() => {
+                  const mt = (txDetail?.company?.memberType || "")
+                    .toString()
+                    .toLowerCase();
+                  if (!mt) return "—";
+                  return mt === "single"
+                    ? "Single Member"
+                    : mt === "multiple"
+                    ? "Multiple Member"
+                    : txDetail?.company?.memberType;
+                })()}
+              </div>
+            </div>
+            {String(txDetail?.country || country || "").toUpperCase() ===
+              "USA" && (
+              <div>
+                <div className="text-xs text-gray-500">State</div>
+                <div className="font-medium text-gray-900">
+                  {txDetail?.company?.state || "—"}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {loading && <div className="text-gray-600">Loading…</div>}
@@ -225,6 +376,176 @@ function Content() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Messages Section */}
+        <div className="mt-6 rounded-2xl bg-indigo-50/40 shadow-sm ring-1 ring-indigo-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7 8h10M7 12h8m-8 4h6"
+                />
+              </svg>
+            </span>
+            <div>
+              <div className="text-lg font-semibold text-gray-900">
+                Messages
+              </div>
+              <div className="text-sm text-gray-600">Messages from admin</div>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-xl ring-1 ring-gray-100">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-left text-gray-700">
+                  <th className="px-4 py-3 font-semibold">Sl</th>
+                  <th className="px-4 py-3 font-semibold">Sent By</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Preview</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const onlyAdmin = [...messages]
+                    .map((m: any) => ({ ...m, _type: "admin" }))
+                    .sort((a: any, b: any) => {
+                      const at =
+                        (a.createdAt as any)?.toMillis?.() ||
+                        ((a.createdAt as any)?.seconds || 0) * 1000;
+                      const bt =
+                        (b.createdAt as any)?.toMillis?.() ||
+                        ((b.createdAt as any)?.seconds || 0) * 1000;
+                      return bt - at;
+                    });
+                  if (onlyAdmin.length === 0) {
+                    return (
+                      <tr className="border-t">
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">No messages</td>
+                        <td className="px-4 py-3">—</td>
+                      </tr>
+                    );
+                  }
+                  return onlyAdmin.map((row: any, idx: number) => (
+                    <tr
+                      key={`${row._type}-${row.id || idx}`}
+                      className="border-t"
+                    >
+                      <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
+                      <td className="px-4 py-3 text-gray-700">Admin</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {formatDateDMY(row.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 truncate max-w-[320px]">
+                        {(row.message || row.text || "")
+                          .toString()
+                          .slice(0, 100)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => {
+                            setMsgViewerItem(row);
+                            setMsgViewerOpen(true);
+                          }}
+                          className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {msgViewerOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => {
+              setMsgViewerOpen(false);
+              setMsgViewerItem(null);
+            }}
+          >
+            <div
+              className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  setMsgViewerOpen(false);
+                  setMsgViewerItem(null);
+                }}
+                aria-label="Close"
+                className="absolute top-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                ✕
+              </button>
+              <div className="p-5 sm:p-6 bg-gradient-to-r from-indigo-50 to-white border-b">
+                <div className="text-sm text-gray-600">Conversation</div>
+                <div className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                  {pkgTitle}
+                </div>
+              </div>
+              <div className="p-5 sm:p-6 max-h-[60vh] overflow-y-auto">
+                {(() => {
+                  const onlyAdmin = [...messages]
+                    .map((m: any) => ({ ...m, _type: "admin" }))
+                    .sort((a: any, b: any) => {
+                      const at =
+                        (a.createdAt as any)?.toMillis?.() ||
+                        ((a.createdAt as any)?.seconds || 0) * 1000;
+                      const bt =
+                        (b.createdAt as any)?.toMillis?.() ||
+                        ((b.createdAt as any)?.seconds || 0) * 1000;
+                      return at - bt; // chronological
+                    });
+                  if (onlyAdmin.length === 0)
+                    return (
+                      <div className="text-sm text-gray-600">
+                        No messages yet.
+                      </div>
+                    );
+                  return (
+                    <div className="space-y-3">
+                      {onlyAdmin.map((row: any, idx: number) => (
+                        <div
+                          key={`${row._type}-${row.id || idx}`}
+                          className={`rounded-lg border p-3 ${"border-purple-200 bg-purple-50/40"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-medium text-gray-700">
+                              Admin
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatDateDMY(row.createdAt)}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap">
+                            {row.message || row.text || ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Reply UI removed: messages are view-only */}
+            </div>
           </div>
         )}
       </div>

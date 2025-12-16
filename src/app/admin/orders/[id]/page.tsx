@@ -171,17 +171,19 @@ export default function AdminOrderDetailsPage() {
           setUploads([]);
           return;
         }
+        const txId =
+          detail?.id ||
+          (detail as any)?.transactionId ||
+          (detail as any)?.txId ||
+          null;
         const q1 = query(
           collection(db, "AdminUploads"),
           where("userId", "==", detail.userId)
         );
         const snap = await getDocs(q1);
-        let rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-        if (detail.packageDisplay) {
-          rows = rows.filter(
-            (r) => (r.packageName || "") === detail.packageDisplay
-          );
-        }
+        let rows = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as any) }))
+          .filter((r: any) => (r.transactionId || r.txId || null) === txId);
         rows.sort((a, b) => {
           const at =
             (a.uploadedAt as any)?.toMillis?.() ||
@@ -199,7 +201,7 @@ export default function AdminOrderDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [detail?.userId, detail?.packageDisplay]);
+  }, [detail?.userId, detail?.id]);
 
   // Load AdminMessages for this transaction
   React.useEffect(() => {
@@ -297,7 +299,6 @@ export default function AdminOrderDetailsPage() {
             Back to Sales Dashboard
           </Link>
         </div>
-
         {userMsgViewerOpen && userMsgViewerItem && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
@@ -572,14 +573,12 @@ export default function AdminOrderDetailsPage() {
                 </p>
               </div>
             </div>
-            {type === "pending" && (
-              <button
-                onClick={() => setUploadOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-700"
-              >
-                Upload
-              </button>
-            )}
+            <button
+              onClick={() => setUploadOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-700"
+            >
+              Upload
+            </button>
           </div>
           <div className="overflow-x-auto rounded-xl ring-1 ring-gray-100">
             <table className="min-w-full text-sm">
@@ -673,7 +672,105 @@ export default function AdminOrderDetailsPage() {
           </div>
         </div>
 
-        {/* Messages sections removed per request */}
+        <div className="mt-6 rounded-2xl bg-purple-50/40 shadow-sm ring-1 ring-purple-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-700 ring-1 ring-purple-100">
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M7 8h10M7 12h8m-8 4h6"
+                  />
+                </svg>
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Messages
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Admin messages and user replies
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-xl ring-1 ring-gray-100">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-left text-gray-700">
+                  <th className="px-4 py-3 font-semibold">Sl</th>
+                  <th className="px-4 py-3 font-semibold">Sent By</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Preview</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const merged = [
+                    ...messages.map((m: any) => ({ ...m, _type: "admin" })),
+                    ...userMessages.map((m: any) => ({ ...m, _type: "user" })),
+                  ].sort((a: any, b: any) => {
+                    const at =
+                      (a.createdAt as any)?.toMillis?.() ||
+                      ((a.createdAt as any)?.seconds || 0) * 1000;
+                    const bt =
+                      (b.createdAt as any)?.toMillis?.() ||
+                      ((b.createdAt as any)?.seconds || 0) * 1000;
+                    return bt - at;
+                  });
+                  if (merged.length === 0) {
+                    return (
+                      <tr className="border-t">
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">—</td>
+                        <td className="px-4 py-3 text-gray-700">No messages</td>
+                        <td className="px-4 py-3">—</td>
+                      </tr>
+                    );
+                  }
+                  return merged.map((row: any, idx: number) => (
+                    <tr
+                      key={`${row._type}-${row.id || idx}`}
+                      className="border-t"
+                    >
+                      <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {row._type === "admin" ? "Admin" : "User"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {formatDateTime(row.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 truncate max-w-[320px]">
+                        {(row.message || row.text || "")
+                          .toString()
+                          .slice(0, 100)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => {
+                            setMsgViewerItem(row);
+                            setMsgViewerOpen(true);
+                          }}
+                          className="px-2 py-1 rounded-md text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* Segment 5: Status */}
         {/* Segment 4: Status */}
@@ -786,7 +883,7 @@ export default function AdminOrderDetailsPage() {
         </div>
       </div>
 
-      {type === "pending" && uploadOpen && (
+      {uploadOpen && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
           onClick={(e) => {
@@ -827,6 +924,21 @@ export default function AdminOrderDetailsPage() {
                   className="text-sm"
                 />
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-gray-600">
+                  Message to user (optional)
+                </label>
+                <textarea
+                  value={msgText}
+                  onChange={(e) => setMsgText(e.target.value)}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm min-h-[90px]"
+                  placeholder="Write a message to the user regarding this package (optional)"
+                  disabled={uploading}
+                />
+                <div className="text-xs text-gray-500">
+                  You can send a message, upload a document, or do both.
+                </div>
+              </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t p-4">
               <button
@@ -849,70 +961,122 @@ export default function AdminOrderDetailsPage() {
                       setUploadError("Missing package name");
                       return;
                     }
-                    if (!fileTitle.trim()) {
-                      setUploadError("Please provide a title");
-                      return;
-                    }
-                    if (!fileObj) {
-                      setUploadError("Please select a file");
+                    if (!fileObj && !msgText.trim()) {
+                      setUploadError("Provide a file or a message");
                       return;
                     }
                     setUploading(true);
-                    const safeName = fileObj.name.replace(
-                      /[^a-zA-Z0-9_.-]/g,
-                      "_"
-                    );
-                    const path = `admin-uploads/${
-                      detail.userId
-                    }/${Date.now()}_${safeName}`;
-                    const storageRef = ref(storage, path);
-                    await uploadBytes(storageRef, fileObj);
-                    const url = await getDownloadURL(storageRef);
-                    const payload: any = {
-                      userId: detail.userId,
-                      userName:
-                        detail.displayName ||
-                        detail.userName ||
-                        detail.displayEmail ||
-                        "",
-                      packageName: detail.packageDisplay,
-                      country: detail.country || null,
-                      title: fileTitle.trim(),
-                      downloadURL: url,
-                      storagePath: path,
-                      uploadedAt: Timestamp.now(),
-                      uploaderId: uploaderId || null,
-                      uploaderName: uploaderName || null,
-                    };
-                    await addDoc(collection(db, "AdminUploads"), payload);
+                    let uploadedSomething = false;
+
+                    if (fileObj) {
+                      if (!fileTitle.trim()) {
+                        setUploadError("Please provide a title for the file");
+                        setUploading(false);
+                        return;
+                      }
+                      const safeName = fileObj.name.replace(
+                        /[^a-zA-Z0-9_.-]/g,
+                        "_"
+                      );
+                      const path = `admin-uploads/${
+                        detail.userId
+                      }/${Date.now()}_${safeName}`;
+                      const storageRef = ref(storage, path);
+                      await uploadBytes(storageRef, fileObj);
+                      const url = await getDownloadURL(storageRef);
+                      const payload: any = {
+                        userId: detail.userId,
+                        transactionId:
+                          detail.id ||
+                          detail.transactionId ||
+                          (detail as any)?.txId ||
+                          id ||
+                          null,
+                        userName:
+                          detail.displayName ||
+                          detail.userName ||
+                          detail.displayEmail ||
+                          "",
+                        packageName: detail.packageDisplay,
+                        country: detail.country || null,
+                        title: fileTitle.trim(),
+                        downloadURL: url,
+                        storagePath: path,
+                        uploadedAt: Timestamp.now(),
+                        uploaderId: uploaderId || null,
+                        uploaderName: uploaderName || null,
+                      };
+                      await addDoc(collection(db, "AdminUploads"), payload);
+                      uploadedSomething = true;
+                    }
+
+                    if (msgText.trim()) {
+                      const msgPayload: any = {
+                        userId: detail.userId,
+                        transactionId: detail.id || null,
+                        packageName: detail.packageDisplay,
+                        country: detail.country || null,
+                        message: msgText.trim(),
+                        createdAt: Timestamp.now(),
+                        senderId: uploaderId || null,
+                        senderName: uploaderName || null,
+                        senderRole: "admin",
+                      };
+                      const refDoc = await addDoc(
+                        collection(db, "AdminMessages"),
+                        msgPayload
+                      );
+                      setMessages((prev) => [
+                        { id: refDoc.id, ...msgPayload },
+                        ...prev,
+                      ]);
+                    }
+
                     setUploadOpen(false);
                     setFileTitle("");
                     setFileObj(null);
-                    // refresh list
-                    try {
-                      const q1 = query(
-                        collection(db, "AdminUploads"),
-                        where("userId", "==", detail.userId)
-                      );
-                      const snap = await getDocs(q1);
-                      let rows = snap.docs.map((d) => ({
-                        id: d.id,
-                        ...(d.data() as any),
-                      }));
-                      rows = rows.filter(
-                        (r) => (r.packageName || "") === detail.packageDisplay
-                      );
-                      rows.sort((a, b) => {
-                        const at =
-                          (a.uploadedAt as any)?.toMillis?.() ||
-                          (a.uploadedAt?.seconds || 0) * 1000;
-                        const bt =
-                          (b.uploadedAt as any)?.toMillis?.() ||
-                          (b.uploadedAt?.seconds || 0) * 1000;
-                        return bt - at;
-                      });
-                      setUploads(rows);
-                    } catch {}
+                    setMsgText("");
+
+                    if (uploadedSomething) {
+                      // refresh using userId and then strictly filter by computed txId
+                      try {
+                        const txId =
+                          detail?.id ||
+                          (detail as any)?.transactionId ||
+                          (detail as any)?.txId ||
+                          id ||
+                          null;
+                        const q1 = query(
+                          collection(db, "AdminUploads"),
+                          where("userId", "==", detail.userId)
+                        );
+                        const snap = await getDocs(q1);
+                        let rows = snap.docs
+                          .map((d) => ({ id: d.id, ...(d.data() as any) }))
+                          .filter(
+                            (r: any) =>
+                              (r.transactionId || r.txId || null) === txId
+                          );
+                        if (rows.length === 0 && detail.packageDisplay) {
+                          rows = snap.docs
+                            .map((d) => ({ id: d.id, ...(d.data() as any) }))
+                            .filter(
+                              (r: any) =>
+                                (r.packageName || "") === detail.packageDisplay
+                            );
+                        }
+                        rows.sort((a, b) => {
+                          const at =
+                            (a.uploadedAt as any)?.toMillis?.() ||
+                            (a.uploadedAt?.seconds || 0) * 1000;
+                          const bt =
+                            (b.uploadedAt as any)?.toMillis?.() ||
+                            (b.uploadedAt?.seconds || 0) * 1000;
+                          return bt - at;
+                        });
+                        setUploads(rows);
+                      } catch {}
+                    }
                   } catch (e: any) {
                     setUploadError(e?.message || "Failed to upload");
                   } finally {
@@ -924,6 +1088,92 @@ export default function AdminOrderDetailsPage() {
               >
                 {uploading ? "Uploading..." : "Upload"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {msgViewerOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setMsgViewerOpen(false);
+              setMsgViewerItem(null);
+            }
+          }}
+        >
+          <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
+            <button
+              onClick={() => {
+                setMsgViewerOpen(false);
+                setMsgViewerItem(null);
+              }}
+              aria-label="Close"
+              className="absolute top-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              ✕
+            </button>
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-purple-50 to-white border-b">
+              <div className="text-sm text-gray-600">Conversation</div>
+              <div className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                {detail?.packageDisplay || "Service Package"}
+              </div>
+            </div>
+            <div className="p-5 sm:p-6 max-h-[70vh] overflow-y-auto">
+              {(() => {
+                const merged = [
+                  ...messages.map((m: any) => ({ ...m, _type: "admin" })),
+                  ...userMessages.map((m: any) => ({ ...m, _type: "user" })),
+                ].sort((a: any, b: any) => {
+                  const at =
+                    (a.createdAt as any)?.toMillis?.() ||
+                    ((a.createdAt as any)?.seconds || 0) * 1000;
+                  const bt =
+                    (b.createdAt as any)?.toMillis?.() ||
+                    ((b.createdAt as any)?.seconds || 0) * 1000;
+                  return at - bt; // chronological
+                });
+                if (merged.length === 0)
+                  return (
+                    <div className="text-sm text-gray-600">
+                      No messages yet.
+                    </div>
+                  );
+                return (
+                  <div className="space-y-3">
+                    {merged.map((row: any, idx: number) => {
+                      const isSelected = !!(
+                        msgViewerItem &&
+                        msgViewerItem.id === row.id &&
+                        msgViewerItem._type === row._type
+                      );
+                      return (
+                        <div
+                          key={`${row._type}-${row.id || idx}`}
+                          className={`rounded-lg border p-3 ${
+                            row._type === "admin"
+                              ? "border-purple-200 bg-purple-50/40"
+                              : "border-emerald-200 bg-emerald-50/40"
+                          } ${isSelected ? "ring-2 ring-indigo-400" : ""}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-medium text-gray-700">
+                              {row._type === "admin" ? "Admin" : "User"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatDateTime(row.createdAt)}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap">
+                            {row.message || row.text || ""}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
