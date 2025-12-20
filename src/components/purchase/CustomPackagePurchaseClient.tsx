@@ -443,9 +443,9 @@ export default function CustomPackagePurchaseClient() {
           },
           addOns: selectedAddOns,
           features: Array.isArray(pkg.features) ? pkg.features : [],
-          couponCode: coupon.trim().toUpperCase() || undefined,
-          couponPercent: couponPercent || undefined,
-          discountAmount: discount || undefined,
+          couponCode: coupon.trim().toUpperCase() || null,
+          couponPercent: couponPercent || 0,
+          discountAmount: discount || 0,
           breakdown: {
             planPrice,
             stateFee,

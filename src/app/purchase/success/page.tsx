@@ -35,13 +35,19 @@ function SuccessWriter() {
         // Load last order details from checkout page
         let orderDetails: any = null;
         try {
-          const raw = typeof window !== "undefined" ? window.localStorage.getItem("lastOrderDetails") : null;
+          const raw =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("lastOrderDetails")
+              : null;
           if (raw) orderDetails = JSON.parse(raw);
         } catch {}
 
         const effectiveUserId = orderDetails?.userId || null;
         const email = orderDetails?.email || null;
-        const amount = amountFromQuery > 0 ? amountFromQuery : Number(orderDetails?.amount || 0);
+        const amount =
+          amountFromQuery > 0
+            ? amountFromQuery
+            : Number(orderDetails?.amount || 0);
 
         if (!effectiveUserId) throw new Error("Missing user");
         if (!(amount > 0)) throw new Error("Invalid amount");
@@ -50,7 +56,11 @@ function SuccessWriter() {
         // Prefer deterministic id (savedAt) for idempotency; otherwise include time to avoid collisions
         const rawKey = orderDetails?.savedAt
           ? `${effectiveUserId}_${orderDetails.savedAt}`
-          : `${effectiveUserId}_${(orderDetails?.packageKey || pkg || "pkg").toString()}_${Math.round(
+          : `${effectiveUserId}_${(
+              orderDetails?.packageKey ||
+              pkg ||
+              "pkg"
+            ).toString()}_${Math.round(
               Number(amount) * 100
             )}_${currency}_${Date.now()}`;
         const txId = rawKey.replace(/[^a-zA-Z0-9_\-]/g, "_");
@@ -59,7 +69,8 @@ function SuccessWriter() {
           userId: effectiveUserId,
           email,
           packageKey: orderDetails?.packageKey || pkg || null,
-          packageTitle: titleFromQuery || orderDetails?.packageTitle || (pkg ? pkg : null),
+          packageTitle:
+            titleFromQuery || orderDetails?.packageTitle || (pkg ? pkg : null),
           amount,
           currency,
           status: "pending",
@@ -68,14 +79,17 @@ function SuccessWriter() {
           company: orderDetails?.company || null,
           addOns: orderDetails?.addOns || [],
           features: orderDetails?.features || [],
-          breakdown: orderDetails?.breakdown || undefined,
-          couponCode: orderDetails?.couponCode,
-          couponPercent: orderDetails?.couponPercent,
-          discountAmount: orderDetails?.discountAmount,
+          breakdown: orderDetails?.breakdown ?? null,
+          couponCode: orderDetails?.couponCode ?? null,
+          couponPercent: orderDetails?.couponPercent ?? 0,
+          discountAmount: orderDetails?.discountAmount ?? 0,
         };
 
         const txDocRef = doc(collection(db, "Transactions"), txId);
-        await setDoc(txDocRef, payload, { merge: true });
+        const sanitized = Object.fromEntries(
+          Object.entries(payload).filter(([, v]) => v !== undefined)
+        );
+        await setDoc(txDocRef, sanitized, { merge: true });
 
         if (!cancelled) {
           // Clean URL and local storage
@@ -94,7 +108,10 @@ function SuccessWriter() {
             const base =
               (process.env.NEXT_PUBLIC_BASE_URL as string) ||
               (typeof window !== "undefined" ? window.location.origin : "");
-            const target = `${base.replace(/\/$/, "")}/user/dashboard/purchases`;
+            const target = `${base.replace(
+              /\/$/,
+              ""
+            )}/user/dashboard/purchases`;
             window.location.assign(target);
           } catch {
             router.replace("/user/dashboard/purchases");
@@ -133,8 +150,12 @@ export default function PurchaseSuccessPage() {
       fallback={
         <section className="min-h-[50vh] flex items-center justify-center bg-gray-50">
           <div className="bg-white rounded-2xl shadow ring-1 ring-gray-100 p-6 w-full max-w-md text-center">
-            <div className="text-xl font-semibold text-gray-900">Processing…</div>
-            <div className="mt-2 text-sm text-gray-600">Preparing your success page…</div>
+            <div className="text-xl font-semibold text-gray-900">
+              Processing…
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              Preparing your success page…
+            </div>
           </div>
         </section>
       }
