@@ -34,7 +34,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       await signIn(email, password);
       onSuccess?.();
-      // Fast-path admin by email
+      // Fast-path
       const currentEmail = auth?.currentUser?.email || email;
       const normalizedEmail = (currentEmail || "").trim().toLowerCase();
       if (normalizedEmail === "admin@ecobusinessbd.com") {
