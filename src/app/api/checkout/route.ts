@@ -3,6 +3,8 @@ import Stripe from "stripe";
 // Ensure this route runs in Node.js runtime (Stripe SDK requires Node, not Edge)
 export const runtime = "nodejs";
 
+console.log("Stripe key exists:", !!process.env.STRIPE_SECRET_KEY);
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
