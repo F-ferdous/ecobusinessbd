@@ -1,6 +1,9 @@
 env:
   - variable: STRIPE_SECRET_KEY
-    value: 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
+    value: STRIPE_SECRET_KEY
+
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: pk_live_51SQ5YrPa7Np7r5mrgMXfDKrw8jkAAwRxe4PaGJuwwnBL674sm684OTR1gt9xM3Nn2WhdQdYF92jCy3vFFzCwZ7FR00ZGpGqmhz
 
   - variable: NEXT_PUBLIC_BASE_URL
     value: "https://ecobusinessbd.com"
