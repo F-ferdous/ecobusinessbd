@@ -1,12 +1,12 @@
 runConfig:
-  env:
-    - variable: STRIPE_SECRET_KEY
-      value: STRIPE_SECRET_KEY
+  secrets:
+    - STRIPE_SECRET_KEY
 
-    - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-      value: pk_live_51SQ5YrPa7Np7r5mrgMXfDKrw8jkAAwRxe4PaGJuwwnBL674sm684OTR1gt9xM3Nn2WhdQdYF92jCy3vFFzCwZ7FR00ZGpGqmhz
+env:
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: pk_live_51SQ5YrPa7Np7r5mrgMXfDKrw8jkAAwRxe4PaGJuwwnBL674sm684OTR1gt9xM3Nn2WhdQdYF92jCy3vFFzCwZ7FR00ZGpGqmhz
 
-    - variable: NEXT_PUBLIC_BASE_URL
-      value: "https://ecobusinessbd.com"
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: "https://ecobusinessbd.com"
 #variable: STRIPE_SECRET_KEY
 #   value: sk_test_51SQ5YrPa7Np7r5mrejXIDLGlSYlSspLN5jYqkVFVMUOCNoLtMvWRTrcoHWsE9UvPRFKyBXtveliT5od3upLExKOm00ylvq8tSE
