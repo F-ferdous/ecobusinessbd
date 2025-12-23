@@ -1,0 +1,9 @@
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+
+env:
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: "https://ecobusinessbd.com"
+    availability:
+      - RUNTIME
