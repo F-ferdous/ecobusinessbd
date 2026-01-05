@@ -165,7 +165,7 @@ function SectionContent() {
                     Project
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                    Country
+                    Message
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     Date & Time
@@ -188,7 +188,7 @@ function SectionContent() {
                       {t.packageName || "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {t.country || "—"}
+                      {t.message || "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {formatDateTime(t.createdAt)}
