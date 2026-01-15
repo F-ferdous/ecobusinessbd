@@ -82,28 +82,33 @@ export default function AdminOrderDetailsPage() {
         if (!db || !id) return;
         setLoading(true);
         setError("");
-        const src = type === "pending" ? "PendingOrders" : "Transactions";
-        const baseDoc = await getDoc(doc(collection(db, src), id));
+        // Read from Transactions primarily; if pending path passed a PendingOrders ID, resolve to transactionId
+        let baseDoc = await getDoc(doc(collection(db, "Transactions"), id));
+        if (!baseDoc.exists() && type === "pending") {
+          try {
+            const poDoc = await getDoc(
+              doc(collection(db, "PendingOrders"), id)
+            );
+            const txId = poDoc.exists()
+              ? (poDoc.data() as any)?.transactionId ||
+                (poDoc.data() as any)?.txId ||
+                ""
+              : "";
+            if (txId) {
+              const txDoc = await getDoc(
+                doc(collection(db, "Transactions"), txId)
+              );
+              if (txDoc.exists()) baseDoc = txDoc;
+            }
+          } catch {}
+        }
         if (!baseDoc.exists()) {
           throw new Error("Order not found");
         }
         const base = { id: baseDoc.id, ...(baseDoc.data() as any) } as any;
 
         let enriched: any = { ...base };
-        if (type === "pending") {
-          const txId = base.transactionId || base.txId || "";
-          if (txId) {
-            try {
-              const txSnap = await getDoc(
-                doc(collection(db, "Transactions"), txId)
-              );
-              if (txSnap.exists()) {
-                const tx = { id: txSnap.id, ...(txSnap.data() as any) } as any;
-                enriched = { ...tx, pending: base };
-              }
-            } catch {}
-          }
-        } else {
+        if (type !== "pending") {
           try {
             const q1 = query(
               collection(db, "PendingOrders"),
@@ -573,12 +578,14 @@ export default function AdminOrderDetailsPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setUploadOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-700"
-            >
-              Upload
-            </button>
+            {type === "pending" && (
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-sky-700"
+              >
+                Upload
+              </button>
+            )}
           </div>
           <div className="overflow-x-auto rounded-xl ring-1 ring-gray-100">
             <table className="min-w-full text-sm">
@@ -700,6 +707,59 @@ export default function AdminOrderDetailsPage() {
               </div>
             </div>
           </div>
+          {type === "pending" && (
+            <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50/60 p-4">
+              {msgError && (
+                <div className="mb-2 text-sm text-red-600">{msgError}</div>
+              )}
+              {msgSuccess && (
+                <div className="mb-2 text-sm text-emerald-700">
+                  {msgSuccess}
+                </div>
+              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Send Message to User
+              </label>
+              <textarea
+                value={msgText}
+                onChange={(e) => setMsgText(e.target.value)}
+                placeholder="Type your message..."
+                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                rows={3}
+              />
+              <div className="mt-2 flex items-center justify-end">
+                <button
+                  disabled={msgSending || !msgText.trim()}
+                  onClick={async () => {
+                    try {
+                      setMsgError("");
+                      setMsgSuccess("");
+                      if (!db) return;
+                      const text = msgText.trim();
+                      if (!text) return;
+                      setMsgSending(true);
+                      await addDoc(collection(db, "AdminMessages"), {
+                        transactionId: detail?.id || id,
+                        userId: detail?.userId || null,
+                        message: text,
+                        sentBy: uploaderName || "Admin",
+                        createdAt: Timestamp.now(),
+                      });
+                      setMsgText("");
+                      setMsgSuccess("Message sent");
+                    } catch (e: any) {
+                      setMsgError(e?.message || "Failed to send message");
+                    } finally {
+                      setMsgSending(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700 disabled:opacity-60"
+                >
+                  {msgSending ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="overflow-x-auto rounded-xl ring-1 ring-gray-100">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
@@ -810,7 +870,7 @@ export default function AdminOrderDetailsPage() {
                 ? "completed"
                 : "pending"}
             </span>
-            {(detail?.status || type) !== "completed" && (
+            {type === "pending" && (detail?.status || type) !== "completed" && (
               <button
                 onClick={async () => {
                   try {

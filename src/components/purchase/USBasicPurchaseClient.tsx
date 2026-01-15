@@ -572,6 +572,80 @@ export default function USBasicPurchaseClient() {
       } catch (_) {
         /* non-blocking */
       }
+      // If total is zero, bypass Stripe and record the transaction directly
+      if (!(total > 0)) {
+        try {
+          setCheckoutLoading(true);
+          if (!db) throw new Error("Firestore not initialized");
+          // Read back order details for consistency
+          let orderDetails: any = null;
+          try {
+            const raw =
+              typeof window !== "undefined"
+                ? window.localStorage.getItem("lastOrderDetails")
+                : null;
+            if (raw) orderDetails = JSON.parse(raw);
+          } catch {}
+          const effectiveUserId =
+            orderDetails?.userId ||
+            (user as any)?.uid ||
+            (user as any)?.id ||
+            null;
+          if (!effectiveUserId) throw new Error("Missing user");
+          const createdAt = Timestamp.now();
+          const rawKey = orderDetails?.savedAt
+            ? `${effectiveUserId}_${orderDetails.savedAt}`
+            : `${effectiveUserId}_${(
+                orderDetails?.packageKey ||
+                pkgKey ||
+                "pkg"
+              ).toString()}_${Math.round(Number(0) * 100)}_USD_${Date.now()}`;
+          const txId = rawKey.replace(/[^a-zA-Z0-9_\-]/g, "_");
+          const payload: any = {
+            userId: effectiveUserId,
+            email: orderDetails?.email || (user as any)?.email || null,
+            packageKey: orderDetails?.packageKey || pkgKey || null,
+            packageTitle: orderDetails?.packageTitle || meta.title,
+            amount: 0,
+            currency: "USD",
+            status: "pending",
+            createdAt,
+            country: orderDetails?.country || "USA",
+            company: orderDetails?.company || null,
+            addOns: orderDetails?.addOns || [],
+            features: orderDetails?.features || [],
+            breakdown: orderDetails?.breakdown ?? null,
+            couponCode: orderDetails?.couponCode ?? null,
+            couponPercent: orderDetails?.couponPercent ?? 0,
+            discountAmount: orderDetails?.discountAmount ?? 0,
+          };
+          const txDocRef = doc(collection(db, "Transactions"), txId);
+          const sanitized = Object.fromEntries(
+            Object.entries(payload).filter(([, v]) => v !== undefined)
+          );
+          await setDoc(txDocRef, sanitized, { merge: true });
+          // Clean local state and redirect
+          try {
+            if (typeof window !== "undefined") {
+              window.localStorage.removeItem("lastOrderDetails");
+              const base =
+                (process.env.NEXT_PUBLIC_BASE_URL as string) ||
+                (typeof window !== "undefined" ? window.location.origin : "");
+              const target = `${base.replace(
+                /\/$/,
+                ""
+              )}/user/dashboard/purchases`;
+              window.location.assign(target);
+              return;
+            }
+          } catch {}
+        } catch (e: unknown) {
+          setCheckoutError(e instanceof Error ? e.message : "Checkout failed");
+        } finally {
+          setCheckoutLoading(false);
+        }
+        return;
+      }
       setCheckoutLoading(true);
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -659,7 +733,7 @@ export default function USBasicPurchaseClient() {
                     required
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-black"
                   >
                     {US_STATES.map((s) => (
                       <option key={s} value={s}>
@@ -676,7 +750,7 @@ export default function USBasicPurchaseClient() {
                     required
                     value={companyType}
                     onChange={(e) => setCompanyType(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-black"
                   >
                     {COMPANY_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -693,7 +767,7 @@ export default function USBasicPurchaseClient() {
                     required
                     value={proposedName}
                     onChange={(e) => setProposedName(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-black placeholder-gray-400"
                     placeholder="Enter proposed company name"
                   />
                 </div>
@@ -705,7 +779,7 @@ export default function USBasicPurchaseClient() {
                     required
                     value={serviceType}
                     onChange={(e) => setServiceType(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-black"
                   >
                     {SERVICE_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -828,7 +902,7 @@ export default function USBasicPurchaseClient() {
                 <input
                   value={coupon}
                   onChange={(e) => setCoupon(e.target.value)}
-                  className="flex-1 px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="flex-1 px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-black placeholder-gray-400"
                   placeholder="Enter coupon code"
                 />
                 <button
@@ -920,8 +994,12 @@ export default function USBasicPurchaseClient() {
                     className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
                   >
                     {checkoutLoading
-                      ? "Redirecting to Stripe..."
-                      : "Proceed to Checkout"}
+                      ? total > 0
+                        ? "Redirecting to Stripe..."
+                        : "Completing..."
+                      : total > 0
+                      ? "Proceed to Checkout"
+                      : "Complete Purchase"}
                   </button>
                 </div>
               ) : (

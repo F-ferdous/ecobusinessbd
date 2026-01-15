@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, setDoc, Timestamp } from "firebase/firestore";
 
 // Reuse the additional services catalog used in purchase pages
 const ADDITIONAL_SERVICES = [
@@ -254,6 +254,75 @@ export default function AdditionalServicePurchaseClient() {
           JSON.stringify(orderDetails)
         );
       }
+      // If total is zero, bypass Stripe and record the transaction directly
+      if (!(total > 0)) {
+        try {
+          setCheckoutLoading(true);
+          if (!db) throw new Error("Firestore not initialized");
+          // Read back order details for consistency
+          let details: any = null;
+          try {
+            const raw =
+              typeof window !== "undefined"
+                ? window.localStorage.getItem("lastOrderDetails")
+                : null;
+            if (raw) details = JSON.parse(raw);
+          } catch {}
+          const effectiveUserId =
+            details?.userId || (user as any)?.uid || (user as any)?.id || null;
+          if (!effectiveUserId) throw new Error("Missing user");
+          const createdAt = Timestamp.now();
+          const rawKey = details?.savedAt
+            ? `${effectiveUserId}_${details.savedAt}`
+            : `${effectiveUserId}_${(
+                details?.packageKey ||
+                service?.id ||
+                "additional"
+              ).toString()}_${Math.round(Number(0) * 100)}_USD_${Date.now()}`;
+          const txId = rawKey.replace(/[^a-zA-Z0-9_\-]/g, "_");
+          const payload: any = {
+            userId: effectiveUserId,
+            email: details?.email || (user as any)?.email || null,
+            packageKey: details?.packageKey || service?.id || "additional",
+            packageTitle:
+              details?.packageTitle || service?.title || "Additional Service",
+            amount: 0,
+            currency: "USD",
+            status: "pending",
+            createdAt,
+            country: details?.country || country,
+            company: details?.company || null,
+            addOns: details?.addOns || [],
+            features: details?.features || [],
+            breakdown: details?.breakdown ?? null,
+          };
+          const txDocRef = doc(collection(db, "Transactions"), txId);
+          const sanitized = Object.fromEntries(
+            Object.entries(payload).filter(([, v]) => v !== undefined)
+          );
+          await setDoc(txDocRef, sanitized, { merge: true });
+          // Clean local state and redirect
+          try {
+            if (typeof window !== "undefined") {
+              window.localStorage.removeItem("lastOrderDetails");
+              const base =
+                (process.env.NEXT_PUBLIC_BASE_URL as string) ||
+                (typeof window !== "undefined" ? window.location.origin : "");
+              const target = `${base.replace(
+                /\/$/,
+                ""
+              )}/user/dashboard/purchases`;
+              window.location.assign(target);
+              return;
+            }
+          } catch {}
+        } catch (e: unknown) {
+          setCheckoutError(e instanceof Error ? e.message : "Checkout failed");
+        } finally {
+          setCheckoutLoading(false);
+        }
+        return;
+      }
       setCheckoutLoading(true);
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -323,7 +392,7 @@ export default function AdditionalServicePurchaseClient() {
                   <input
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300"
+                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 text-black placeholder-gray-400"
                     placeholder="Your company name"
                   />
                 </div>
@@ -335,7 +404,7 @@ export default function AdditionalServicePurchaseClient() {
                     value={country}
                     onChange={(e) => setCountry(e.target.value as any)}
                     disabled={!!forcedCountry}
-                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white disabled:opacity-70"
+                    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white disabled:opacity-70 text-black"
                   >
                     <option value="USA">USA</option>
                     <option value="UK">UK</option>
@@ -354,7 +423,7 @@ export default function AdditionalServicePurchaseClient() {
                     <select
                       value={usState}
                       onChange={(e) => setUsState(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white"
+                      className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 border-gray-300 bg-white text-black"
                     >
                       {US_STATES.map((s) => (
                         <option key={s} value={s}>
@@ -400,7 +469,13 @@ export default function AdditionalServicePurchaseClient() {
                   disabled={checkoutLoading}
                   className="w-full inline-flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 disabled:opacity-60"
                 >
-                  {checkoutLoading ? "Processing..." : "Proceed to Checkout"}
+                  {checkoutLoading
+                    ? total > 0
+                      ? "Redirecting to Stripe..."
+                      : "Completing..."
+                    : total > 0
+                    ? "Proceed to Checkout"
+                    : "Complete Purchase"}
                 </button>
               ) : (
                 <div className="space-y-3">

@@ -594,17 +594,17 @@ function AdminDashboardInner() {
             </select>
           </div>
         </div>
-        {/* Details Modal */}
-        {selected && (
+        {/* Details Modal (disabled) */}
+        {selected && false && (
           <div className="fixed inset-0 z-50">
             <div
               className="absolute inset-0 bg-black/40"
               onClick={() => setSelected(null)}
             />
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl ring-1 ring-gray-100">
+            <div className="absolute inset-0 flex items-start justify-center p-4 pt-10">
+              <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl ring-1 ring-gray-100 max-h-[85vh] overflow-y-auto">
                 <div className="flex items-center justify-between border-b px-6 py-4">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     Order Details
                   </h2>
                   <button
@@ -628,148 +628,46 @@ function AdminDashboardInner() {
                     </svg>
                   </button>
                 </div>
-                <div className="px-6 py-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-xs text-gray-500">User</div>
-                      <div className="font-medium text-gray-900">
-                        {userNameMap[selected.userId || ""] ||
-                          selected.userName ||
-                          selected.email ||
-                          selected.userId ||
-                          "—"}
-                      </div>
-                      {/* Company Details section (from linked Transaction) */}
-                      <div className="rounded-xl border border-gray-200 p-4">
-                        <div className="text-sm font-semibold text-gray-800 mb-2">
-                          Company Details
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
-                          <div>
-                            <span className="text-gray-500">Company Name:</span>{" "}
-                            {(selectedTx as any)?.company?.proposedName ||
-                              (selectedTx as any)?.company?.name ||
-                              "—"}
-                          </div>
-                          {String(
-                            (selectedPending as any)?.country || ""
-                          ).toUpperCase() === "USA" && (
-                            <div>
-                              <span className="text-gray-500">State:</span>{" "}
-                              {(selectedTx as any)?.company?.state || "—"}
-                            </div>
-                          )}
-                          <div>
-                            <span className="text-gray-500">Company Type:</span>{" "}
-                            {(selectedTx as any)?.company?.companyType || "—"}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Member Type:</span>{" "}
-                            {(() => {
-                              const mt =
-                                (selectedTx as any)?.company?.memberType || "";
-                              if (!mt) return "—";
-                              const m = String(mt).toLowerCase();
-                              return m === "single"
-                                ? "Single Member"
-                                : m === "multiple"
-                                ? "Multiple Member"
-                                : mt;
-                            })()}
-                          </div>
-                          <div className="sm:col-span-2">
-                            <span className="text-gray-500">Service Type:</span>{" "}
-                            {(selectedTx as any)?.company?.serviceType || "—"}
-                          </div>
-                        </div>
-                      </div>
+                <div className="px-6 py-5 space-y-4">
+                  {/* User Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      User Details
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Status</div>
-                      <div className="mt-1">
-                        <StatusBadge status={selected.status} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Package</div>
-                      <div className="font-medium text-gray-900">
-                        {selected.packageTitle || selected.packageKey || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Country</div>
-                      <div className="font-medium text-gray-900">
-                        {selected.country || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Company Name</div>
-                      <div className="font-medium text-gray-900">
-                        {(selected as any)?.company?.proposedName ||
-                          (selected as any)?.company?.name ||
-                          "—"}
-                      </div>
-                    </div>
-                    {String((selected as any)?.country || "").toUpperCase() ===
-                      "USA" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
                       <div>
-                        <div className="text-xs text-gray-500">State</div>
-                        <div className="font-medium text-gray-900">
-                          {(selected as any)?.company?.state || "—"}
-                        </div>
+                        <span className="text-gray-600">User Name:</span>{" "}
+                        {userNameMap[(selected as any)?.userId || ""] ||
+                          (selected as any)?.userName ||
+                          (selected as any)?.email ||
+                          (selected as any)?.userId ||
+                          "—"}
                       </div>
-                    )}
-                    <div>
-                      <div className="text-xs text-gray-500">Company Type</div>
-                      <div className="font-medium text-gray-900">
-                        {(selected as any)?.company?.companyType || "—"}
+                      <div>
+                        <span className="text-gray-600">Email:</span>{" "}
+                        {(selected as any)?.email || "—"}
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Member Type</div>
-                      <div className="font-medium text-gray-900">
-                        {(() => {
-                          const mt =
-                            (selected as any)?.company?.memberType || "";
-                          if (!mt) return "—";
-                          const m = String(mt).toLowerCase();
-                          return m === "single"
-                            ? "Single Member"
-                            : m === "multiple"
-                            ? "Multiple Member"
-                            : mt;
-                        })()}
+                      <div>
+                        <span className="text-gray-600">Phone:</span>{" "}
+                        {(selected as any)?.phone ||
+                          (selected as any)?.mobileNumber ||
+                          "—"}
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Service Type</div>
-                      <div className="font-medium text-gray-900">
-                        {(selected as any)?.company?.serviceType || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Purchase Date</div>
-                      <div className="font-medium text-gray-900">
-                        {formatDateOnly(selected.createdAt)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">
-                        Transaction ID
-                      </div>
-                      <div className="font-mono text-gray-900 break-all">
-                        {selected.id}
+                      <div>
+                        <span className="text-gray-600">Address:</span>{" "}
+                        {(selected as any)?.address || "—"}
                       </div>
                     </div>
                   </div>
-                  {/* Company Details section */}
-                  <div className="mt-6 rounded-xl border border-gray-200 p-4">
-                    <div className="text-sm font-semibold text-gray-800 mb-2">
+
+                  {/* Company Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
                       Company Details
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
                       <div>
-                        <span className="text-gray-500">Company Name:</span>{" "}
+                        <span className="text-gray-600">Company Name:</span>{" "}
                         {(selected as any)?.company?.proposedName ||
                           (selected as any)?.company?.name ||
                           "—"}
@@ -778,16 +676,16 @@ function AdminDashboardInner() {
                         (selected as any)?.country || ""
                       ).toUpperCase() === "USA" && (
                         <div>
-                          <span className="text-gray-500">State:</span>{" "}
+                          <span className="text-gray-600">State:</span>{" "}
                           {(selected as any)?.company?.state || "—"}
                         </div>
                       )}
                       <div>
-                        <span className="text-gray-500">Company Type:</span>{" "}
+                        <span className="text-gray-600">Company Type:</span>{" "}
                         {(selected as any)?.company?.companyType || "—"}
                       </div>
                       <div>
-                        <span className="text-gray-500">Member Type:</span>{" "}
+                        <span className="text-gray-600">Member Type:</span>{" "}
                         {(() => {
                           const mt =
                             (selected as any)?.company?.memberType || "";
@@ -801,28 +699,135 @@ function AdminDashboardInner() {
                         })()}
                       </div>
                       <div className="sm:col-span-2">
-                        <span className="text-gray-500">Service Type:</span>{" "}
+                        <span className="text-gray-600">Service Type:</span>{" "}
                         {(selected as any)?.company?.serviceType || "—"}
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 border-t px-6 py-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(null)}
-                    className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Close
-                  </button>
+
+                  {/* Package Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      Package Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
+                      <div>
+                        <span className="text-gray-600">Package:</span>{" "}
+                        {(selected as any)?.packageTitle ||
+                          (selected as any)?.packageKey ||
+                          "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Country:</span>{" "}
+                        {(selected as any)?.country || "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Purchase Date:</span>{" "}
+                        {formatDateOnly((selected as any)?.createdAt)}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-gray-600">Transaction ID:</span>{" "}
+                        <span className="font-mono">
+                          {(selected as any)?.id}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      Payment Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-800">
+                      <div>
+                        Plan Price:{" "}
+                        {typeof (selected as any)?.breakdown?.planPrice ===
+                        "number"
+                          ? `$${Number(
+                              (selected as any).breakdown.planPrice
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      {String(
+                        (selected as any)?.country || ""
+                      ).toUpperCase() === "USA" && (
+                        <div>
+                          State Fee:{" "}
+                          {typeof (selected as any)?.breakdown?.stateFee ===
+                          "number"
+                            ? `$${Number(
+                                (selected as any).breakdown.stateFee
+                              ).toFixed(0)}`
+                            : "—"}
+                        </div>
+                      )}
+                      <div>
+                        Monthly Fee:{" "}
+                        {typeof (selected as any)?.breakdown?.monthlyFee ===
+                        "number"
+                          ? `$${Number(
+                              (selected as any).breakdown.monthlyFee
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Add-ons:{" "}
+                        {typeof (selected as any)?.breakdown?.addOnTotal ===
+                        "number"
+                          ? `$${Number(
+                              (selected as any).breakdown.addOnTotal
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Discount:{" "}
+                        {typeof (selected as any)?.breakdown?.discount ===
+                        "number"
+                          ? `-$${Number(
+                              (selected as any).breakdown.discount
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        Total:{" "}
+                        {typeof (selected as any)?.breakdown?.total === "number"
+                          ? `$${Number(
+                              (selected as any).breakdown.total
+                            ).toFixed(0)}`
+                          : typeof (selected as any)?.amount === "number"
+                          ? `${(selected as any)?.currency || "USD"} ${Number(
+                              (selected as any).amount
+                            ).toFixed(2)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Coupon Code: {(selected as any)?.couponCode || "—"}
+                      </div>
+                      <div>
+                        Coupon Percent:{" "}
+                        {typeof (selected as any)?.couponPercent === "number"
+                          ? `${(selected as any).couponPercent}%`
+                          : "—"}
+                      </div>
+                      <div>
+                        Discount Amount:{" "}
+                        {typeof (selected as any)?.discountAmount === "number"
+                          ? `-$${Number(
+                              (selected as any).discountAmount
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Details Modal for Pending Orders */}
-        {selectedPending && status === "pending" && (
+        {/* Details Modal for Pending Orders (disabled) */}
+        {selectedPending && status === "pending" && false && (
           <div className="fixed inset-0 z-50">
             <div
               className="absolute inset-0 bg-black/40"
@@ -831,10 +836,10 @@ function AdminDashboardInner() {
                 setSelectedTx(null);
               }}
             />
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl ring-1 ring-gray-100">
+            <div className="absolute inset-0 flex items-start justify-center p-4 pt-10">
+              <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl ring-1 ring-gray-100 max-h-[85vh] overflow-y-auto">
                 <div className="flex items-center justify-between border-b px-6 py-4">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     Pending Order Details
                   </h2>
                   <button
@@ -861,59 +866,61 @@ function AdminDashboardInner() {
                     </svg>
                   </button>
                 </div>
-                <div className="px-6 py-5 space-y-6 bg-emerald-50/40 ring-1 ring-emerald-100 rounded-b-xl">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-xs text-gray-500">User</div>
-                      <div className="font-medium text-gray-900">
-                        {userNameMap[selectedPending.userId] || "—"}
+                <div className="px-6 py-5 space-y-4 bg-emerald-50/40 ring-1 ring-emerald-100 rounded-b-xl">
+                  {/* User Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      User Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
+                      <div>
+                        <span className="text-gray-600">User Name:</span>{" "}
+                        {userNameMap[(selectedPending as any)?.userId || ""] ||
+                          "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Email:</span>{" "}
+                        {(selectedTx as any)?.email || "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Phone:</span>{" "}
+                        {(selectedTx as any)?.phone ||
+                          (selectedTx as any)?.mobileNumber ||
+                          "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Address:</span>{" "}
+                        {(selectedTx as any)?.address || "—"}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Status</div>
-                      <div className="mt-1">
-                        <StatusBadge status={selectedPending.status} />
-                      </div>
+                  </div>
+
+                  {/* Company Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      Company Details
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Package</div>
-                      <div className="font-medium text-gray-900">
-                        {selectedPending.packageName || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Country</div>
-                      <div className="font-medium text-gray-900">
-                        {selectedPending.country || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Company Name</div>
-                      <div className="font-medium text-gray-900">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
+                      <div>
+                        <span className="text-gray-600">Company Name:</span>{" "}
                         {(selectedTx as any)?.company?.proposedName ||
                           (selectedTx as any)?.company?.name ||
                           "—"}
                       </div>
-                    </div>
-                    {String(
-                      (selectedPending as any)?.country || ""
-                    ).toUpperCase() === "USA" && (
-                      <div>
-                        <div className="text-xs text-gray-500">State</div>
-                        <div className="font-medium text-gray-900">
+                      {String(
+                        (selectedPending as any)?.country || ""
+                      ).toUpperCase() === "USA" && (
+                        <div>
+                          <span className="text-gray-600">State:</span>{" "}
                           {(selectedTx as any)?.company?.state || "—"}
                         </div>
-                      </div>
-                    )}
-                    <div>
-                      <div className="text-xs text-gray-500">Company Type</div>
-                      <div className="font-medium text-gray-900">
+                      )}
+                      <div>
+                        <span className="text-gray-600">Company Type:</span>{" "}
                         {(selectedTx as any)?.company?.companyType || "—"}
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Member Type</div>
-                      <div className="font-medium text-gray-900">
+                      <div>
+                        <span className="text-gray-600">Member Type:</span>{" "}
                         {(() => {
                           const mt =
                             (selectedTx as any)?.company?.memberType || "";
@@ -926,58 +933,140 @@ function AdminDashboardInner() {
                             : mt;
                         })()}
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Service Type</div>
-                      <div className="font-medium text-gray-900">
+                      <div className="sm:col-span-2">
+                        <span className="text-gray-600">Service Type:</span>{" "}
                         {(selectedTx as any)?.company?.serviceType || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Date</div>
-                      <div className="font-medium text-gray-900">
-                        {formatDateOnly(selectedPending.createdAt)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">
-                        Transaction ID
-                      </div>
-                      <div className="font-mono text-gray-900 break-all">
-                        {selectedPending.transactionId || "—"}
                       </div>
                     </div>
                   </div>
 
-                  {/* Linked Transaction Preview */}
-                  {selectedTx && (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-                      <div className="text-sm font-semibold text-gray-800 mb-2">
-                        Transaction Summary
+                  {/* Package Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      Package Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-800">
+                      <div>
+                        <span className="text-gray-600">Package:</span>{" "}
+                        {(selectedPending as any)?.packageName ||
+                          (selectedTx as any)?.packageTitle ||
+                          (selectedTx as any)?.packageKey ||
+                          "—"}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
-                        <div>
-                          <span className="text-gray-500">Email:</span>{" "}
-                          {selectedTx.email || "—"}
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Package Title:</span>{" "}
-                          {selectedTx.packageTitle ||
-                            selectedTx.packageKey ||
+                      <div>
+                        <span className="text-gray-600">Country:</span>{" "}
+                        {(selectedPending as any)?.country || "—"}
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Date:</span>{" "}
+                        {formatDateOnly((selectedPending as any)?.createdAt)}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-gray-600">Transaction ID:</span>{" "}
+                        <span className="font-mono">
+                          {(selectedPending as any)?.transactionId ||
+                            (selectedTx as any)?.id ||
                             "—"}
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Status:</span>{" "}
-                          {selectedTx.status || "—"}
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Date:</span>{" "}
-                          {formatDateOnly(selectedTx.createdAt)}
-                        </div>
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Status:</span>{" "}
+                        <span className="inline-block align-middle ml-1">
+                          <StatusBadge
+                            status={(selectedPending as any)?.status}
+                          />
+                        </span>
                       </div>
                     </div>
-                  )}
+                  </div>
 
+                  {/* Payment Details */}
+                  <div className="rounded-xl border border-gray-200 shadow-sm p-4 bg-white">
+                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                      Payment Details
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-800">
+                      <div>
+                        Plan Price:{" "}
+                        {typeof (selectedTx as any)?.breakdown?.planPrice ===
+                        "number"
+                          ? `$${Number(
+                              (selectedTx as any).breakdown.planPrice
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      {String(
+                        (selectedPending as any)?.country || ""
+                      ).toUpperCase() === "USA" && (
+                        <div>
+                          State Fee:{" "}
+                          {typeof (selectedTx as any)?.breakdown?.stateFee ===
+                          "number"
+                            ? `$${Number(
+                                (selectedTx as any).breakdown.stateFee
+                              ).toFixed(0)}`
+                            : "—"}
+                        </div>
+                      )}
+                      <div>
+                        Monthly Fee:{" "}
+                        {typeof (selectedTx as any)?.breakdown?.monthlyFee ===
+                        "number"
+                          ? `$${Number(
+                              (selectedTx as any).breakdown.monthlyFee
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Add-ons:{" "}
+                        {typeof (selectedTx as any)?.breakdown?.addOnTotal ===
+                        "number"
+                          ? `$${Number(
+                              (selectedTx as any).breakdown.addOnTotal
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Discount:{" "}
+                        {typeof (selectedTx as any)?.breakdown?.discount ===
+                        "number"
+                          ? `-$${Number(
+                              (selectedTx as any).breakdown.discount
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        Total:{" "}
+                        {typeof (selectedTx as any)?.breakdown?.total ===
+                        "number"
+                          ? `$${Number(
+                              (selectedTx as any).breakdown.total
+                            ).toFixed(0)}`
+                          : typeof (selectedTx as any)?.amount === "number"
+                          ? `${(selectedTx as any)?.currency || "USD"} ${Number(
+                              (selectedTx as any).amount
+                            ).toFixed(2)}`
+                          : "—"}
+                      </div>
+                      <div>
+                        Coupon Code: {(selectedTx as any)?.couponCode || "—"}
+                      </div>
+                      <div>
+                        Coupon Percent:{" "}
+                        {typeof (selectedTx as any)?.couponPercent === "number"
+                          ? `${(selectedTx as any).couponPercent}%`
+                          : "—"}
+                      </div>
+                      <div>
+                        Discount Amount:{" "}
+                        {typeof (selectedTx as any)?.discountAmount === "number"
+                          ? `-$${Number(
+                              (selectedTx as any).discountAmount
+                            ).toFixed(0)}`
+                          : "—"}
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
@@ -1066,9 +1155,9 @@ function AdminDashboardInner() {
           )}
           {!loading && !error && processed.total > 0 && (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-sm text-black">
                 <thead>
-                  <tr className="text-left text-gray-700 border-b bg-gray-50/60">
+                  <tr className="text-left text-black border-b bg-gray-50/60">
                     <th className="py-3 pr-4 font-semibold">
                       {status === "pending" ? "Date" : "SL"}
                     </th>
@@ -1102,26 +1191,18 @@ function AdminDashboardInner() {
                       onClick={async () => {
                         try {
                           if (status === "pending") {
-                            const pendingRow = row as any;
-                            setSelectedPending(pendingRow);
-                            setSelectedTx(null);
-                            const tid = pendingRow.transactionId;
-                            if (tid) {
-                              try {
-                                const snap = await getDoc(
-                                  doc(db, "Transactions", tid)
-                                );
-                                if (snap.exists())
-                                  setSelectedTx({
-                                    id: snap.id,
-                                    ...(snap.data() as any),
-                                  } as any);
-                              } catch (e) {
-                                console.error(e);
-                              }
-                            }
+                            const base = pathname.startsWith("/manager")
+                              ? "/manager/orders"
+                              : "/admin/orders";
+                            const targetId =
+                              (row as any).transactionId || row.id;
+                            router.push(`${base}/${targetId}?type=pending`);
                           } else {
-                            setSelected(row as any);
+                            const base = pathname.startsWith("/manager")
+                              ? "/manager/orders"
+                              : "/admin/orders";
+                            const targetId = row.id;
+                            router.push(`${base}/${targetId}?type=tx`);
                           }
                         } catch (e) {
                           console.error(e);
@@ -1146,7 +1227,7 @@ function AdminDashboardInner() {
                               .slice(0, 1)
                               .toUpperCase()}
                           </span>
-                          <div className="text-gray-800">
+                          <div className="text-black">
                             {userNameMap[row.userId || ""] ||
                               row.userName ||
                               row.email ||
@@ -1181,7 +1262,7 @@ function AdminDashboardInner() {
                                   : "/admin/orders";
                                 const targetId =
                                   (row as any).transactionId || row.id;
-                                router.push(`${base}/${targetId}?type=tx`);
+                                router.push(`${base}/${targetId}?type=pending`);
                               }}
                               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow hover:bg-emerald-700 active:scale-[.99]"
                             >
@@ -1199,7 +1280,8 @@ function AdminDashboardInner() {
                               const base = pathname.startsWith("/manager")
                                 ? "/manager/orders"
                                 : "/admin/orders";
-                              router.push(`${base}/${row.id}?type=tx`);
+                              const targetId = row.id;
+                              router.push(`${base}/${targetId}?type=tx`);
                             }}
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow hover:bg-emerald-700 active:scale-[.99]"
                           >
