@@ -23,6 +23,7 @@ type UploadRow = {
   filePath?: string | null;
   uploadTime?: Timestamp | null;
   title?: string | null;
+  transactionId?: string | null;
 };
 
 export default function DocumentsViewPage() {
@@ -79,8 +80,13 @@ function Content() {
             filePath: data.storagePath || data.filePath || null,
             uploadTime: data.uploadedAt || data.uploadTime || null,
             title: data.title || null,
+            transactionId: data.transactionId || data.txId || null,
           } as UploadRow;
         });
+        // If tx filter present, prefer strict match by transactionId first
+        if (txId.trim()) {
+          list = list.filter((r) => (r.transactionId || "") === txId);
+        }
         // If package filter present, filter client-side (exact, case-insensitive)
         if (pkgTitle.trim()) {
           const norm = (s: any) => (s ?? "").toString().toLowerCase();
