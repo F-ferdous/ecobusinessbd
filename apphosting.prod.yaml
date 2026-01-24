@@ -6,6 +6,11 @@ env:
     availability:
       - RUNTIME
 
+  - variable: PAYPAL_MODE
+    value: live
+    availability:
+      - RUNTIME
+
   - variable: PAYPAL_CLIENT_SECRET
     secret: PAYPAL_CLIENT_SECRET
     availability:
