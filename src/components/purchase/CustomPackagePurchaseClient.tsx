@@ -174,6 +174,9 @@ export default function CustomPackagePurchaseClient() {
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
   const [formError, setFormError] = React.useState("");
+  const [paymentMethod, setPaymentMethod] = React.useState<"stripe" | "paypal">(
+    "stripe",
+  );
 
   // Required form fields (similar to UK flow)
   // Country toggle and dependent options
@@ -256,13 +259,13 @@ export default function CustomPackagePurchaseClient() {
     "Other",
   ];
   const [companyType, setCompanyType] = React.useState<string>(
-    UK_COMPANY_TYPES[0]
+    UK_COMPANY_TYPES[0],
   );
   const [serviceType, setServiceType] = React.useState<string>(
-    SERVICE_TYPES[0]
+    SERVICE_TYPES[0],
   );
   const [memberType, setMemberType] = React.useState<"single" | "multiple">(
-    "single"
+    "single",
   );
   const [proposedName, setProposedName] = React.useState("");
   const [usState, setUsState] = React.useState<string>(US_STATES[0]);
@@ -299,7 +302,7 @@ export default function CustomPackagePurchaseClient() {
   const subtotal = planPrice + stateFee + monthlyFee + addOnTotal + extraFee;
   const discount = Math.max(
     0,
-    Math.round((subtotal * (couponPercent || 0)) / 100)
+    Math.round((subtotal * (couponPercent || 0)) / 100),
   );
   const total = Math.max(0, subtotal - discount);
 
@@ -316,7 +319,7 @@ export default function CustomPackagePurchaseClient() {
       }
       if (!db) return;
       const snap = await getDocs(
-        query(collection(db, "CouponCodes"), where("code", "==", code))
+        query(collection(db, "CouponCodes"), where("code", "==", code)),
       );
       if (snap.empty) {
         setCouponPercent(0);
@@ -376,7 +379,7 @@ export default function CustomPackagePurchaseClient() {
       const cred = await createUserWithEmailAndPassword(
         auth,
         regEmail,
-        regPassword
+        regPassword,
       );
       const now = Timestamp.now();
       const payload = {
@@ -412,7 +415,7 @@ export default function CustomPackagePurchaseClient() {
         (country === "USA" && !usState)
       ) {
         setFormError(
-          "Please complete all required details before proceeding to checkout."
+          "Please complete all required details before proceeding to checkout.",
         );
         return;
       }
@@ -460,7 +463,7 @@ export default function CustomPackagePurchaseClient() {
         if (typeof window !== "undefined") {
           window.localStorage.setItem(
             "lastOrderDetails",
-            JSON.stringify(orderDetails)
+            JSON.stringify(orderDetails),
           );
         }
       } catch (_) {}
@@ -513,7 +516,7 @@ export default function CustomPackagePurchaseClient() {
           };
           const txDocRef = doc(collection(db, "Transactions"), txId);
           const sanitized = Object.fromEntries(
-            Object.entries(payload).filter(([, v]) => v !== undefined)
+            Object.entries(payload).filter(([, v]) => v !== undefined),
           );
           await setDoc(txDocRef, sanitized, { merge: true });
           // Clean local state and redirect
@@ -525,7 +528,7 @@ export default function CustomPackagePurchaseClient() {
                 (typeof window !== "undefined" ? window.location.origin : "");
               const target = `${base.replace(
                 /\/$/,
-                ""
+                "",
               )}/user/dashboard/purchases`;
               window.location.assign(target);
               return;
@@ -540,7 +543,9 @@ export default function CustomPackagePurchaseClient() {
       }
 
       setCheckoutLoading(true);
-      const res = await fetch("/api/checkout", {
+      const isStripe = paymentMethod === "stripe";
+      const endpoint = isStripe ? "/api/checkout" : "/api/paypal/checkout";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -562,7 +567,7 @@ export default function CustomPackagePurchaseClient() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        throw new Error("Invalid Stripe session URL");
+        throw new Error("Invalid checkout session URL");
       }
     } catch (e: any) {
       setCheckoutError(e?.message || "Checkout failed");
@@ -877,26 +882,59 @@ export default function CustomPackagePurchaseClient() {
                   {checkoutError && (
                     <div className="text-sm text-red-600">{checkoutError}</div>
                   )}
-                  <button
-                    onClick={handleProceedToCheckout}
-                    disabled={
-                      checkoutLoading ||
-                      !proposedName.trim() ||
-                      !companyType ||
-                      !serviceType ||
-                      !memberType ||
-                      (country === "USA" && !usState)
-                    }
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
-                  >
-                    {checkoutLoading
-                      ? total > 0
-                        ? "Redirecting to Stripe..."
-                        : "Completing..."
-                      : total > 0
-                      ? "Proceed to Checkout"
-                      : "Complete Purchase"}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleProceedToCheckout}
+                      disabled={
+                        checkoutLoading ||
+                        !proposedName.trim() ||
+                        !companyType ||
+                        !serviceType ||
+                        !memberType ||
+                        (country === "USA" && !usState)
+                      }
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
+                    >
+                      {checkoutLoading
+                        ? total > 0
+                          ? paymentMethod === "stripe"
+                            ? "Redirecting to Stripe..."
+                            : "Redirecting to PayPal..."
+                          : "Completing..."
+                        : total > 0
+                          ? "Proceed to Checkout"
+                          : "Complete Purchase"}
+                    </button>
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Method
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("stripe")}
+                          className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold ${
+                            paymentMethod === "stripe"
+                              ? "border-emerald-600 text-emerald-700 bg-emerald-50"
+                              : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
+                          }`}
+                        >
+                          Stripe
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("paypal")}
+                          className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold ${
+                            paymentMethod === "paypal"
+                              ? "border-emerald-600 text-emerald-700 bg-emerald-50"
+                              : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
+                          }`}
+                        >
+                          PayPal
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 </div>
               ) : (
                 <>

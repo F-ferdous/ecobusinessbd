@@ -7,3 +7,5 @@ env:
     value: "https://ecobusinessbd.com"
     availability:
       - RUNTIME
+  - variable: PAYPAL_CLIENT_TEST_SECRET
+    secret: PAYPAL_CLIENT_TEST_SECRET

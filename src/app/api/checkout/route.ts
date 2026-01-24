@@ -38,19 +38,19 @@ export async function POST(req: Request) {
       /localhost/i.test(reqUrl.host) ||
       /^127\.0\.0\.1(?::\d+)?$/.test(reqUrl.host);
     const baseUrl = isLocal ? inferredBase : envBase || inferredBase;
-    const success_url = `${baseUrl}${successPath}?status=success&pkg=${encodeURIComponent(
-      packageKey || ""
+    const success_url = `${baseUrl}${successPath}?status=success&payment=stripe&pkg=${encodeURIComponent(
+      packageKey || "",
     )}&amount=${encodeURIComponent(
-      String(totalAmount)
+      String(totalAmount),
     )}&currency=${encodeURIComponent(
-      String(currency)
+      String(currency),
     )}&title=${encodeURIComponent(String(packageTitle || "Service Package"))}`;
-    const cancel_url = `${baseUrl}${cancelPath}?status=cancel&pkg=${encodeURIComponent(
-      packageKey || ""
+    const cancel_url = `${baseUrl}${cancelPath}?status=cancel&payment=stripe&pkg=${encodeURIComponent(
+      packageKey || "",
     )}&amount=${encodeURIComponent(
-      String(totalAmount)
+      String(totalAmount),
     )}&currency=${encodeURIComponent(
-      String(currency)
+      String(currency),
     )}&title=${encodeURIComponent(String(packageTitle || "Service Package"))}`;
 
     const session = await stripe.checkout.sessions.create({

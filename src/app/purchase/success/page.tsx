@@ -17,6 +17,7 @@ function SuccessWriter() {
     ran.current = true;
 
     const status = (params.get("status") || "").toLowerCase();
+    const paymentMethod = (params.get("payment") || "").toLowerCase();
     const pkg = params.get("pkg") || "";
     const titleFromQuery = params.get("title") || "";
     const amountFromQuery = Number(params.get("amount") || "0");
@@ -61,7 +62,7 @@ function SuccessWriter() {
               pkg ||
               "pkg"
             ).toString()}_${Math.round(
-              Number(amount) * 100
+              Number(amount) * 100,
             )}_${currency}_${Date.now()}`;
         const txId = rawKey.replace(/[^a-zA-Z0-9_\-]/g, "_");
 
@@ -83,11 +84,12 @@ function SuccessWriter() {
           couponCode: orderDetails?.couponCode ?? null,
           couponPercent: orderDetails?.couponPercent ?? 0,
           discountAmount: orderDetails?.discountAmount ?? 0,
+          paymentMethod: paymentMethod || "unknown",
         };
 
         const txDocRef = doc(collection(db, "Transactions"), txId);
         const sanitized = Object.fromEntries(
-          Object.entries(payload).filter(([, v]) => v !== undefined)
+          Object.entries(payload).filter(([, v]) => v !== undefined),
         );
         await setDoc(txDocRef, sanitized, { merge: true });
 
@@ -110,7 +112,7 @@ function SuccessWriter() {
               (typeof window !== "undefined" ? window.location.origin : "");
             const target = `${base.replace(
               /\/$/,
-              ""
+              "",
             )}/user/dashboard/purchases`;
             window.location.assign(target);
           } catch {

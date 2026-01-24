@@ -6,7 +6,17 @@ env:
     availability:
       - RUNTIME
 
+  - variable: PAYPAL_SECRET_KEY
+    secret: PAYPAL_CLIENT_SECRET
+    availability:
+      - RUNTIME
+
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
     value: pk_live_51SQ5YrPa7Np7r5mrgMXfDKrw8jkAAwRxe4PaGJuwwnBL674sm684OTR1gt9xM3Nn2WhdQdYF92jCy3vFFzCwZ7FR00ZGpGqmhz
+    availability:
+      - RUNTIME
+
+  - variable: PAYPAL_CLIENT_ID
+    value: ASh3a6T3tDMCxk5OZxnau0mpmccbBkfHqKiT3kwvoMuPV2KSuDpzlo6IbUJbC9lC8FnJVB4WF7eUuOuO
     availability:
       - RUNTIME

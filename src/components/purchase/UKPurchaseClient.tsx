@@ -240,6 +240,9 @@ export default function UKPurchaseClient() {
   // Checkout state
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
+  const [paymentMethod, setPaymentMethod] = React.useState<
+    "stripe" | "paypal" | null
+  >(null);
 
   // Company details form state (UK)
   const UK_REGIONS = [
@@ -274,10 +277,10 @@ export default function UKPurchaseClient() {
   ];
   const [companyType, setCompanyType] = React.useState(COMPANY_TYPES[0]);
   const [serviceType, setServiceType] = React.useState<string>(
-    SERVICE_TYPES[0]
+    SERVICE_TYPES[0],
   );
   const [memberType, setMemberType] = React.useState<"single" | "multiple">(
-    "single"
+    "single",
   );
   const [proposedName, setProposedName] = React.useState("");
   const [formError, setFormError] = React.useState("");
@@ -298,7 +301,7 @@ export default function UKPurchaseClient() {
   const subtotal = planPrice + stateFee + monthlyFee + addOnTotal + extraFee;
   const discount = Math.max(
     0,
-    Math.round((subtotal * (couponPercent || 0)) / 100)
+    Math.round((subtotal * (couponPercent || 0)) / 100),
   );
   const total = Math.max(0, subtotal - discount);
 
@@ -316,7 +319,7 @@ export default function UKPurchaseClient() {
       }
       if (!db) return;
       const snap = await getDocs(
-        query(collection(db, "CouponCodes"), where("code", "==", code))
+        query(collection(db, "CouponCodes"), where("code", "==", code)),
       );
       if (snap.empty) {
         setCouponPercent(0);
@@ -396,7 +399,7 @@ export default function UKPurchaseClient() {
       const cred = await createUserWithEmailAndPassword(
         auth,
         regEmail,
-        regPassword
+        regPassword,
       );
       const now = Timestamp.now();
       const payload = {
@@ -442,7 +445,7 @@ export default function UKPurchaseClient() {
     // Validate required UK fields
     if (!companyType || !serviceType || !memberType || !proposedName.trim()) {
       setFormError(
-        "Please complete all company details before proceeding to checkout."
+        "Please complete all company details before proceeding to checkout.",
       );
       return;
     }
@@ -492,7 +495,7 @@ export default function UKPurchaseClient() {
         if (typeof window !== "undefined") {
           window.localStorage.setItem(
             "lastOrderDetails",
-            JSON.stringify(orderDetails)
+            JSON.stringify(orderDetails),
           );
         }
       } catch (_) {
@@ -547,7 +550,7 @@ export default function UKPurchaseClient() {
           };
           const txDocRef = doc(collection(db, "Transactions"), txId);
           const sanitized = Object.fromEntries(
-            Object.entries(payload).filter(([, v]) => v !== undefined)
+            Object.entries(payload).filter(([, v]) => v !== undefined),
           );
           await setDoc(txDocRef, sanitized, { merge: true });
           // Clean local state and redirect
@@ -559,7 +562,7 @@ export default function UKPurchaseClient() {
                 (typeof window !== "undefined" ? window.location.origin : "");
               const target = `${base.replace(
                 /\/$/,
-                ""
+                "",
               )}/user/dashboard/purchases`;
               window.location.assign(target);
               return;
@@ -573,7 +576,9 @@ export default function UKPurchaseClient() {
         return;
       }
       setCheckoutLoading(true);
-      const res = await fetch("/api/checkout", {
+      const isStripe = paymentMethod === "stripe";
+      const endpoint = isStripe ? "/api/checkout" : "/api/paypal/checkout";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -585,7 +590,7 @@ export default function UKPurchaseClient() {
           customerEmail: (user as any).email || null,
           successPath: "/purchase/success",
           cancelPath: `/purchase/uk/purchase?package=${encodeURIComponent(
-            pkgKey
+            pkgKey,
           )}`,
         }),
       });
@@ -597,7 +602,7 @@ export default function UKPurchaseClient() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        throw new Error("Invalid Stripe session URL");
+        throw new Error("Invalid checkout session URL");
       }
     } catch (e: unknown) {
       setCheckoutError(e instanceof Error ? e.message : "Checkout failed");
@@ -758,7 +763,7 @@ export default function UKPurchaseClient() {
                       </svg>
                       <span>{f}</span>
                     </li>
-                  )
+                  ),
                 )}
               </ul>
             </section>
@@ -825,7 +830,7 @@ export default function UKPurchaseClient() {
                       </svg>
                       <span>{f}</span>
                     </li>
-                  )
+                  ),
                 )}
               </ul>
             </section>
@@ -916,25 +921,78 @@ export default function UKPurchaseClient() {
                   {checkoutError && (
                     <div className="text-sm text-red-600">{checkoutError}</div>
                   )}
-                  <button
-                    onClick={handleProceedToCheckout}
-                    disabled={
-                      checkoutLoading ||
-                      !proposedName.trim() ||
-                      !companyType ||
-                      !serviceType ||
-                      !memberType
-                    }
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
-                  >
-                    {checkoutLoading
-                      ? total > 0
-                        ? "Redirecting to Stripe..."
-                        : "Completing..."
-                      : total > 0
-                      ? "Proceed to Checkout"
-                      : "Complete Purchase"}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleProceedToCheckout}
+                      disabled={
+                        checkoutLoading ||
+                        !proposedName.trim() ||
+                        !companyType ||
+                        !serviceType ||
+                        !memberType ||
+                        (total > 0 && !paymentMethod)
+                      }
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
+                    >
+                      {checkoutLoading
+                        ? total > 0
+                          ? paymentMethod === "stripe"
+                            ? "Redirecting to Stripe..."
+                            : "Redirecting to PayPal..."
+                          : "Completing..."
+                        : total > 0
+                          ? "Proceed to Checkout"
+                          : "Complete Purchase"}
+                    </button>
+                    {total > 0 && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Select a payment method
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("stripe")}
+                            className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold ${
+                              paymentMethod === "stripe"
+                                ? "border-emerald-600 text-emerald-700 bg-emerald-50"
+                                : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
+                            }`}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="w-4 h-4"
+                            >
+                              <path d="M3 7h14a2 2 0 0 1 2 2v8H5a2 2 0 0 1-2-2V7z" />
+                              <path d="M7 3h10a2 2 0 0 1 2 2v2H7a2 2 0 0 1-2-2 2 2 0 0 1 2-2z" />
+                            </svg>
+                            Stripe
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("paypal")}
+                            className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold ${
+                              paymentMethod === "paypal"
+                                ? "border-emerald-600 text-emerald-700 bg-emerald-50"
+                                : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
+                            }`}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="w-4 h-4"
+                            >
+                              <path d="M5 7a4 4 0 0 1 4-4h8a3 3 0 1 1 0 6h-6v4h6a3 3 0 1 1 0 6H9a4 4 0 0 1-4-4V7z" />
+                            </svg>
+                            PayPal
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 </div>
               ) : (
                 <>
