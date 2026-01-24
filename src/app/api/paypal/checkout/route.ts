@@ -9,13 +9,11 @@ const PAYPAL_API_BASE =
 
 async function getAccessToken() {
   const client = process.env.PAYPAL_CLIENT_ID;
-  // Support both PAYPAL_SECRET_KEY (preferred) and PAYPAL_CLIENT_SECRET (fallback)
-  const secret =
-    process.env.PAYPAL_SECRET_KEY || process.env.PAYPAL_CLIENT_SECRET;
+  const secret = process.env.PAYPAL_CLIENT_SECRET;
   if (!client || !secret) {
     const missing: string[] = [];
     if (!client) missing.push("PAYPAL_CLIENT_ID");
-    if (!secret) missing.push("PAYPAL_SECRET_KEY/PAYPAL_CLIENT_SECRET");
+    if (!secret) missing.push("PAYPAL_CLIENT_SECRET");
     throw new Error(`PayPal not configured: missing ${missing.join(", ")}`);
   }
   const auth = Buffer.from(`${client}:${secret}`).toString("base64");

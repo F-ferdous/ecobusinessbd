@@ -6,7 +6,7 @@ env:
     availability:
       - RUNTIME
 
-  - variable: PAYPAL_SECRET_KEY
+  - variable: PAYPAL_CLIENT_SECRET
     secret: PAYPAL_CLIENT_SECRET
     availability:
       - RUNTIME
