@@ -16,6 +16,11 @@ env:
     availability:
       - RUNTIME
 
+  - variable: PAYPAL_WEBHOOK_ID
+    secret: PAYPAL_WEBHOOK_ID
+    availability:
+      - RUNTIME
+
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
     value: pk_live_51SQ5YrPa7Np7r5mrgMXfDKrw8jkAAwRxe4PaGJuwwnBL674sm684OTR1gt9xM3Nn2WhdQdYF92jCy3vFFzCwZ7FR00ZGpGqmhz
     availability:

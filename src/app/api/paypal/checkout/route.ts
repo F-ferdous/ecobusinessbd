@@ -2,10 +2,8 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-const PAYPAL_API_BASE =
-  process.env.PAYPAL_MODE === "live"
-    ? "https://api-m.paypal.com"
-    : "https://api-m.sandbox.paypal.com";
+// Ensure a valid base URL (default to live API). Avoid empty strings that break fetch.
+const PAYPAL_API_BASE = "https://api-m.paypal.com";
 
 async function getAccessToken() {
   const client = process.env.PAYPAL_CLIENT_ID;

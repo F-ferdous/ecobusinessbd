@@ -9,3 +9,5 @@ env:
       - RUNTIME
   - variable: PAYPAL_CLIENT_TEST_SECRET
     secret: PAYPAL_CLIENT_TEST_SECRET
+  - variable: PAYPAL_WEBHOOK_ID
+    secret: PAYPAL_WEBHOOK_ID
