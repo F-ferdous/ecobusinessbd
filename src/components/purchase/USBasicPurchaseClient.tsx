@@ -340,9 +340,7 @@ export default function USBasicPurchaseClient() {
   // Checkout state
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
-  const [paymentMethod, setPaymentMethod] = React.useState<
-    "stripe" | "paypal" | null
-  >(null);
+  const [paymentMethod, setPaymentMethod] = React.useState<"stripe">("stripe");
 
   const planPrice = meta.planPrice;
   const stateFee = STATE_FEES[state] || 0;
@@ -649,14 +647,8 @@ export default function USBasicPurchaseClient() {
         }
         return;
       }
-      if (total > 0 && !paymentMethod) {
-        setCheckoutError("Please select a payment method");
-        return;
-      }
       setCheckoutLoading(true);
-      const isStripe = paymentMethod === "stripe";
-      const endpoint = isStripe ? "/api/checkout" : "/api/paypal/checkout";
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -990,79 +982,26 @@ export default function USBasicPurchaseClient() {
                   {checkoutError && (
                     <div className="text-sm text-red-600">{checkoutError}</div>
                   )}
-                  <>
-                    {total > 0 && (
-                      <div className="mb-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Select a payment method
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("stripe")}
-                            className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold ${
-                              paymentMethod === "stripe"
-                                ? "border-emerald-600 text-emerald-700 bg-emerald-50"
-                                : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
-                            }`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className="w-4 h-4"
-                            >
-                              <path d="M3 7h14a2 2 0 0 1 2 2v8H5a2 2 0 0 1-2-2V7z" />
-                              <path d="M7 3h10a2 2 0 0 1 2 2v2H7a2 2 0 0 1-2-2 2 2 0 0 1 2-2z" />
-                            </svg>
-                            Stripe
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("paypal")}
-                            className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold ${
-                              paymentMethod === "paypal"
-                                ? "border-emerald-600 text-emerald-700 bg-emerald-50"
-                                : "border-gray-300 text-gray-700 bg-white hover:border-emerald-600 hover:text-emerald-700"
-                            }`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className="w-4 h-4"
-                            >
-                              <path d="M5 7a4 4 0 0 1 4-4h8a3 3 0 1 1 0 6h-6v4h6a3 3 0 1 1 0 6H9a4 4 0 0 1-4-4V7z" />
-                            </svg>
-                            PayPal
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleProceedToCheckout}
-                      disabled={
-                        checkoutLoading ||
-                        !proposedName.trim() ||
-                        !state ||
-                        !companyType ||
-                        !serviceType ||
-                        !memberType ||
-                        (total > 0 && !paymentMethod)
-                      }
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
-                    >
-                      {checkoutLoading
-                        ? total > 0
-                          ? paymentMethod === "stripe"
-                            ? "Redirecting to Stripe..."
-                            : "Redirecting to PayPal..."
-                          : "Completing..."
-                        : total > 0
-                          ? "Proceed to Checkout"
-                          : "Complete Purchase"}
-                    </button>
-                  </>
+                  <button
+                    onClick={handleProceedToCheckout}
+                    disabled={
+                      checkoutLoading ||
+                      !proposedName.trim() ||
+                      !state ||
+                      !companyType ||
+                      !serviceType ||
+                      !memberType
+                    }
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 text-base"
+                  >
+                    {checkoutLoading
+                      ? total > 0
+                        ? "Redirecting to Stripe..."
+                        : "Completing..."
+                      : total > 0
+                        ? "Proceed to Checkout"
+                        : "Complete Purchase"}
+                  </button>
                 </div>
               ) : (
                 <>

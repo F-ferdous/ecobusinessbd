@@ -92,8 +92,8 @@ const InteractivePricing = () => {
     },
     UK: {
       basic: {
-        discounted: 219,
-        original: 299,
+        discounted: 319,
+        original: 399,
         title: "Basic",
         subtitle: "UK company formation Package",
         features: [
@@ -107,8 +107,8 @@ const InteractivePricing = () => {
         ],
       },
       premium: {
-        discounted: 349,
-        original: 449,
+        discounted: 449,
+        original: 549,
         title: "Shopify Plus",
         subtitle: "UK company formation Package",
         features: [
