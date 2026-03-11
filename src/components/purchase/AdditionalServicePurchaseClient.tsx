@@ -124,7 +124,7 @@ export default function AdditionalServicePurchaseClient() {
   const [formError, setFormError] = React.useState("");
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
-  const [paymentMethod, setPaymentMethod] = React.useState<"stripe">("stripe");
+  const [paymentMethod, setPaymentMethod] = React.useState<"paypal">("paypal");
 
   // Country lock rules based on selected service
   const USA_SERVICES = React.useMemo(
@@ -325,7 +325,7 @@ export default function AdditionalServicePurchaseClient() {
         return;
       }
       setCheckoutLoading(true);
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/paypal/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

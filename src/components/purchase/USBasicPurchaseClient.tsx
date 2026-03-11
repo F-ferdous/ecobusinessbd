@@ -340,7 +340,7 @@ export default function USBasicPurchaseClient() {
   // Checkout state
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
-  const [paymentMethod, setPaymentMethod] = React.useState<"stripe">("stripe");
+  const [paymentMethod, setPaymentMethod] = React.useState<"paypal">("paypal");
 
   const planPrice = meta.planPrice;
   const stateFee = STATE_FEES[state] || 0;
@@ -648,7 +648,7 @@ export default function USBasicPurchaseClient() {
         return;
       }
       setCheckoutLoading(true);
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/paypal/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -996,7 +996,7 @@ export default function USBasicPurchaseClient() {
                   >
                     {checkoutLoading
                       ? total > 0
-                        ? "Redirecting to Stripe..."
+                        ? "Redirecting to PayPal..."
                         : "Completing..."
                       : total > 0
                         ? "Proceed to Checkout"

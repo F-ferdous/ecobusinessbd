@@ -240,7 +240,7 @@ export default function UKPurchaseClient() {
   // Checkout state
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
-  const [paymentMethod, setPaymentMethod] = React.useState<"stripe">("stripe");
+  const [paymentMethod, setPaymentMethod] = React.useState<"paypal">("paypal");
 
   // Company details form state (UK)
   const UK_REGIONS = [
@@ -574,7 +574,7 @@ export default function UKPurchaseClient() {
         return;
       }
       setCheckoutLoading(true);
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/paypal/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -931,7 +931,7 @@ export default function UKPurchaseClient() {
                     >
                       {checkoutLoading
                         ? total > 0
-                          ? "Redirecting to Stripe..."
+                          ? "Redirecting to PayPal..."
                           : "Completing..."
                         : total > 0
                           ? "Proceed to Checkout"
