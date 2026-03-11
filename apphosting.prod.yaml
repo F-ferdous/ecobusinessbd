@@ -32,6 +32,6 @@ env:
       - RUNTIME
 
   - variable: PAYPAL_CLIENT_ID
-    value: ASh3a6T3tDMCxk5OZxnau0mpmccbBkfHqKiT3kwvoMuPV2KSuDpzlo6IbUJbC9lC8FnJVB4WF7eUuOuO
+    value: AeZ16DDQD1DWHuzhDdZXGVEel3h9RgToR9dwFw1CAIaPMKR-6JNOU3RueBUu4JmSR7lm_YChEuTKYfTp
     availability:
       - RUNTIME
