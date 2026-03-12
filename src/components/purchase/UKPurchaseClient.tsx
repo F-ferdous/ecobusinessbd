@@ -240,7 +240,9 @@ export default function UKPurchaseClient() {
   // Checkout state
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [checkoutError, setCheckoutError] = React.useState("");
-  const [paymentMethod, setPaymentMethod] = React.useState<"paypal">("paypal");
+  const [paymentMethod, setPaymentMethod] = React.useState<"stripe" | "paypal">(
+    "stripe",
+  );
 
   // Company details form state (UK)
   const UK_REGIONS = [
@@ -574,7 +576,9 @@ export default function UKPurchaseClient() {
         return;
       }
       setCheckoutLoading(true);
-      const res = await fetch("/api/paypal/checkout", {
+      const endpoint =
+        paymentMethod === "stripe" ? "/api/checkout" : "/api/paypal/checkout";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -917,6 +921,54 @@ export default function UKPurchaseClient() {
                   {checkoutError && (
                     <div className="text-sm text-red-600">{checkoutError}</div>
                   )}
+
+                  {/* Payment Method Selector */}
+                  {total > 0 && (
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Select Payment Method
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("stripe")}
+                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${
+                            paymentMethod === "stripe"
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                          }`}
+                        >
+                          <svg
+                            className="w-6 h-6"
+                            viewBox="0 0 60 25"
+                            fill="currentColor"
+                          >
+                            <path d="M59.64 14.28h-8.06c.19 1.93 1.6 2.55 3.2 2.55 1.64 0 2.96-.37 4.05-.95v3.32a10.1 10.1 0 0 1-4.56 1c-4.01 0-6.83-2.5-6.83-7.48 0-4.19 2.39-7.52 6.3-7.52 3.92 0 5.96 3.28 5.96 7.5 0 .4-.04 1.26-.06 1.58zm-6.84-5.7c-1.07 0-2.18.8-2.37 2.64h4.74c-.16-1.84-.98-2.64-2.37-2.64zM38.75 5.32c1.44 0 2.76.37 3.78.95V2.1c-.93-.42-2.16-.63-3.55-.63-4.6 0-7.72 2.55-7.72 7.5 0 5.18 3.32 7.5 7.24 7.5 1.48 0 2.86-.28 4.04-.95v-3.32c-1.1.58-2.42.95-3.86.95-2.29 0-4.14-1.37-4.14-4.18 0-2.8 1.85-4.65 4.21-4.65zM26.41 5.63h4.09l-3.48 10.5h-3.59l-1.48-5.77-1.48 5.77h-3.59l-3.48-10.5h4.09l1.64 6.42 1.5-6.42h3.14l1.5 6.42 1.64-6.42zM6.25 16.13H2.05V5.63h4.2v.8c.83-.66 2.05-1.05 3.32-1.05h.8v3.68h-.8c-1.65 0-3.32.57-3.32 2.1v4.97z" />
+                          </svg>
+                          <span className="font-semibold">Stripe</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("paypal")}
+                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${
+                            paymentMethod === "paypal"
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                          }`}
+                        >
+                          <svg
+                            className="w-6 h-6"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.99 5.05-4.306 6.73-8.59 6.73h-2.37c-.71 0-1.33.52-1.448 1.224l-.04.234-.696 4.515-.038.24a.648.648 0 0 1-.634.74H7.076zm8.757-14.06c.01-.058.02-.115.033-.17.433-2.05-.368-3.48-2.308-4.327-.628-.27-1.36-.418-2.186-.418h-4.84c-.517 0-.95.382-1.03.896l-1.77 11.45h2.73l.996-6.43h2.37c2.48 0 5.02-1.024 6.002-4.003z" />
+                          </svg>
+                          <span className="font-semibold">PayPal</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <>
                     <button
                       onClick={handleProceedToCheckout}
@@ -931,7 +983,9 @@ export default function UKPurchaseClient() {
                     >
                       {checkoutLoading
                         ? total > 0
-                          ? "Redirecting to PayPal..."
+                          ? paymentMethod === "stripe"
+                            ? "Redirecting to Stripe..."
+                            : "Redirecting to PayPal..."
                           : "Completing..."
                         : total > 0
                           ? "Proceed to Checkout"
