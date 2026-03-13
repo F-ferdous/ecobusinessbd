@@ -22,6 +22,7 @@ function SuccessWriter() {
     const titleFromQuery = params.get("title") || "";
     const amountFromQuery = Number(params.get("amount") || "0");
     const currency = (params.get("currency") || "USD").toUpperCase();
+    const paypalToken = params.get("token"); // PayPal returns order ID as 'token'
 
     let cancelled = false;
 
@@ -53,6 +54,34 @@ function SuccessWriter() {
         if (!effectiveUserId) throw new Error("Missing user");
         if (!(amount > 0)) throw new Error("Invalid amount");
 
+        // Capture PayPal payment if returning from PayPal
+        if (paymentMethod === "paypal" && paypalToken) {
+          try {
+            const captureRes = await fetch("/api/paypal/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: paypalToken,
+                userId: effectiveUserId,
+                packageKey: orderDetails?.packageKey || pkg || null,
+                packageTitle:
+                  titleFromQuery || orderDetails?.packageTitle || null,
+                amount: amount,
+                currency: currency,
+              }),
+            });
+            if (!captureRes.ok) {
+              const errData = await captureRes.json().catch(() => ({}));
+              throw new Error(errData.error || "PayPal capture failed");
+            }
+            // Capture successful, proceed to store in Firestore
+          } catch (captureErr: any) {
+            throw new Error(
+              captureErr?.message || "Failed to capture PayPal payment",
+            );
+          }
+        }
+
         const createdAt = Timestamp.now();
         // Prefer deterministic id (savedAt) for idempotency; otherwise include time to avoid collisions
         const rawKey = orderDetails?.savedAt
@@ -74,7 +103,7 @@ function SuccessWriter() {
             titleFromQuery || orderDetails?.packageTitle || (pkg ? pkg : null),
           amount,
           currency,
-          status: "pending",
+          status: paymentMethod === "paypal" ? "completed" : "pending",
           createdAt,
           country: orderDetails?.country || null,
           company: orderDetails?.company || null,
@@ -85,6 +114,7 @@ function SuccessWriter() {
           couponPercent: orderDetails?.couponPercent ?? 0,
           discountAmount: orderDetails?.discountAmount ?? 0,
           paymentMethod: paymentMethod || "unknown",
+          paypalOrderId: paymentMethod === "paypal" ? paypalToken : null,
         };
 
         const txDocRef = doc(collection(db, "Transactions"), txId);
